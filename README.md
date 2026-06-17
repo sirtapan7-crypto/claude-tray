@@ -21,6 +21,10 @@ shows your **rate-limit usage percentage** as a crisp, DPI-aware icon.
 
 ---
 
+> **Unofficial / community project.** Not affiliated with, endorsed by, or sponsored by
+> Anthropic. "Claude" and "Claude Code" are trademarks of Anthropic; this tool merely reads
+> the usage data Claude Code already exposes on your own machine.
+
 Why .NET instead of Python: the number is drawn as a **vector** (`GraphicsPath`,
 with an outline), **at the actual size** the tray requests (`SM_CXSMICON`) and with
 **DPI awareness** (`PerMonitorV2`). No downscaling a 64px bitmap — the number stays
@@ -179,3 +183,8 @@ uninstaller. The script is [installer.iss](installer.iss).
 - **Amber icon / "API error" tooltip** → token may have expired. Run `claude` in the terminal.
 - **Only one icon even if launched twice** → by design: a named mutex enforces a single
   instance, so re-running the `.exe` while it's already in the tray just exits silently.
+
+## License
+
+[Apache License 2.0](LICENSE) © 2026 Alexandre Oliveira. Unofficial, community-built — not
+affiliated with Anthropic.

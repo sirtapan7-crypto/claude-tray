@@ -47,6 +47,15 @@ internal static class Program
             return;
         }
 
+        if (args.Length >= 1 && args[0] == "--social")
+        {
+            string path = args.Length >= 2 ? args[1] : "docs/social-preview.png";
+            using Bitmap bmp = IconRenderer.RenderSocial(1280, 640);
+            bmp.Save(path, System.Drawing.Imaging.ImageFormat.Png);
+            Console.WriteLine("wrote " + Path.GetFullPath(path));
+            return;
+        }
+
         if (args.Length >= 1 && args[0] == "--insights")
         {
             var d = UsageInsights.Compute(DateTimeOffset.UtcNow.UtcDateTime);

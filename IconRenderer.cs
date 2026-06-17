@@ -125,6 +125,50 @@ internal static class IconRenderer
         return bmp;
     }
 
+    /// <summary>
+    /// Render the GitHub social-preview banner (1280×640): the logo tile on a warm-dark
+    /// gradient next to the project name and a one-line tagline.
+    /// </summary>
+    public static Bitmap RenderSocial(int w, int h)
+    {
+        var bmp = new Bitmap(w, h, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+        using var g = Graphics.FromImage(bmp);
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+        g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
+
+        // Warm near-black gradient backdrop.
+        using (var bg = new LinearGradientBrush(new Rectangle(0, 0, w, h),
+                   Color.FromArgb(32, 24, 20), Color.FromArgb(14, 10, 8), 25f))
+            g.FillRectangle(bg, 0, 0, w, h);
+
+        // Logo tile, vertically centered on the left.
+        int logo = 300;
+        int lx = 110, ly = (h - logo) / 2;
+        using (var tile = RenderLogo(logo))
+            g.DrawImage(tile, lx, ly, logo, logo);
+
+        int tx = lx + logo + 72;
+        using var titleFont = new Font("Segoe UI", 82f, FontStyle.Bold, GraphicsUnit.Pixel);
+        using var tagFont = new Font("Segoe UI Semilight", 31f, FontStyle.Regular, GraphicsUnit.Pixel);
+        using var urlFont = new Font("Segoe UI", 26f, FontStyle.Regular, GraphicsUnit.Pixel);
+        using var white = new SolidBrush(Color.FromArgb(245, 244, 242));
+        using var clay = new SolidBrush(ClaudeClay);
+        using var muted = new SolidBrush(Color.FromArgb(185, 182, 178));
+        using var faint = new SolidBrush(Color.FromArgb(130, 126, 122));
+
+        g.DrawString("Claude Code", titleFont, white, tx, 168);
+        g.DrawString("Tray", titleFont, clay, tx, 268);
+
+        var tagRect = new RectangleF(tx + 2, 396, w - tx - 80, 170);
+        g.DrawString("Rate-limit %, burn-rate projection, and a 24h usage breakdown — always in your Windows tray.",
+            tagFont, muted, tagRect);
+
+        g.DrawString("github.com/alegauss/claude-tray", urlFont, faint, tx + 2, h - 70);
+
+        return bmp;
+    }
+
     /// <summary>A pointed star polygon (alternating outer/inner radius), first point at angle <paramref name="rot"/>.</summary>
     private static GraphicsPath Star(float cx, float cy, float outer, float inner, int points, double rot)
     {
