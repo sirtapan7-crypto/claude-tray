@@ -146,8 +146,9 @@ internal sealed class TrayContext : ApplicationContext
     private readonly ApiClient _api = new();
     private readonly BurnTracker _burn = new();
     private readonly Updater _updater = new();
+    private readonly Settings _settings = Settings.Load();
     private volatile InsightsData? _insights;
-    private readonly System.Windows.Forms.Timer _poll = new() { Interval = 300_000 }; // 5 min
+    private readonly System.Windows.Forms.Timer _poll = new(); // interval set from settings
     private readonly System.Windows.Forms.Timer _flash = new() { Interval = 500 };
     private readonly System.Windows.Forms.Timer _updateCheck = new() { Interval = 21_600_000 }; // 6 h
     private readonly List<ToolStripMenuItem> _metricItems = new();
@@ -174,6 +175,7 @@ internal sealed class TrayContext : ApplicationContext
         };
         Render(); // initial "connecting" icon
 
+        _poll.Interval = _settings.RefreshSeconds * 1000;
         _poll.Tick += async (_, _) => await RefreshAsync();
         _poll.Start();
         _flash.Tick += (_, _) => { if (CurrentPct() >= 0.90) { _flashOn = !_flashOn; Render(); } };
@@ -236,6 +238,10 @@ internal sealed class TrayContext : ApplicationContext
         };
         menu.Items.Add(startup);
 
+        var settings = new ToolStripMenuItem("Settings…");
+        settings.Click += (_, _) => OpenSettings();
+        menu.Items.Add(settings);
+
         menu.Items.Add(new ToolStripSeparator());
 
         var quit = new ToolStripMenuItem("Quit");
@@ -251,6 +257,31 @@ internal sealed class TrayContext : ApplicationContext
         foreach (var it in _metricItems)
             it.Checked = (string)it.Tag! == key;
         Render();
+    }
+
+    // Open the settings dialog; on Save, persist and apply the new values immediately.
+    private void OpenSettings()
+    {
+        using var dlg = new SettingsForm(_settings);
+        if (dlg.ShowDialog() != DialogResult.OK) return;
+
+        bool intervalChanged = dlg.Result.RefreshSeconds != _settings.RefreshSeconds;
+        _settings.RefreshSeconds = dlg.Result.RefreshSeconds;
+
+        try { _settings.Save(); }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Could not save settings:\n{ex.Message}",
+                "Claude Code Tray", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+
+        if (intervalChanged)
+        {
+            // Restart the timer so the new cadence takes effect from now.
+            _poll.Stop();
+            _poll.Interval = _settings.RefreshSeconds * 1000;
+            _poll.Start();
+        }
     }
 
     // Fill the "Usage insights" submenu from the cached scan; trigger a refresh for next time.
