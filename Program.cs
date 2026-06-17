@@ -151,6 +151,7 @@ internal sealed class TrayContext : ApplicationContext
     private readonly List<ToolStripMenuItem> _metricItems = new();
 
     private UsageData? _data;
+    private DateTime? _lastRefresh;
     private string _metric = "5h";
     private bool _flashOn;
     private IntPtr _iconHandle = IntPtr.Zero;
@@ -283,6 +284,7 @@ internal sealed class TrayContext : ApplicationContext
     private async Task RefreshAsync()
     {
         _data = await _api.FetchAsync();
+        _lastRefresh = DateTime.Now;
         if (_data is { Error: null })
         {
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
@@ -367,7 +369,8 @@ internal sealed class TrayContext : ApplicationContext
                 ? "✓ Projection: on track"
                 : $"✓ Projection: 100% in {FmtDays(eta)} (after reset)");
 
-        lines.Add($"Status: {_data.Status}");
+        string updated = _lastRefresh is { } t ? $"  ⟳ {t:HH:mm:ss}" : "";
+        lines.Add($"Status: {_data.Status}{updated}");
         return string.Join("\n", lines);
     }
 
