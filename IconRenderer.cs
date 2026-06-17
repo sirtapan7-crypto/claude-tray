@@ -82,7 +82,7 @@ internal static class IconRenderer
         // Foreground: the digits only, large but with a clear left/right margin.
         using var text = new GraphicsPath();
         text.AddString(num, family, bold, em, new PointF(0, 0), StringFormat.GenericTypographic);
-        FitToTile(text, size, size * 0.16f, size * 0.07f);
+        FitToTile(text, size, size * 0.16f, size * 0.16f);
 
         // Dark outline then white fill — the outline keeps the number legible when tiny.
         float penW = Math.Max(1.2f, size * 0.11f);
