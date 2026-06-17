@@ -10,6 +10,7 @@
     <ApplicationIcon>ClaudeTray.ico</ApplicationIcon>
     <AssemblyName>ClaudeTray</AssemblyName>
     <RootNamespace>ClaudeTray</RootNamespace>
+    <Version>1.2.0</Version>
     <!-- Single self-contained .exe when published (see README) -->
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>

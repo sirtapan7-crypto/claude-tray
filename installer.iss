@@ -5,7 +5,7 @@
 ; Output: dist\ClaudeTray-Setup.exe
 
 #define MyAppName "Claude Code Tray"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.2.0"
 #define MyAppPublisher "Alexandre Oliveira"
 #define MyAppExeName "ClaudeTray.exe"
 #define MyPublishDir "bin\Release\net10.0-windows\win-x64\publish"
