@@ -24,10 +24,14 @@ internal static class IconRenderer
     private static readonly Color BlueDeep  = Color.FromArgb(58, 76, 96);     // flash background
 
     // Fill-bar color: a neon green rising from the bottom, Task-Manager style — reads as a
-    // distinct "in use" zone over the blue base. Turns red when the projection says usage
-    // will hit 100% before the window resets.
-    private static readonly Color BarFill   = Color.FromArgb(57, 230, 70);
-    private static readonly Color BarDanger = Color.FromArgb(255, 35, 30);   // vivid, alarming red
+    // distinct "in use" zone over the blue base. Until there are enough samples to project a
+    // burn rate the bar is blue ("undefined"); once a projection exists it turns green (on
+    // track), or — when usage is set to hit 100% before the window resets — warms from orange
+    // toward the alarming red as usage approaches 100%.
+    private static readonly Color BarUnknown = Color.FromArgb(70, 150, 245); // pre-projection blue
+    private static readonly Color BarFill    = Color.FromArgb(57, 230, 70);
+    private static readonly Color BarOrange   = Color.FromArgb(255, 150, 20); // early-warning orange
+    private static readonly Color BarDanger   = Color.FromArgb(255, 35, 30);  // vivid, alarming red
 
     // 3D bevel edges (top-left highlight, bottom-right shadow)
     private static readonly Color BevelLight = Color.FromArgb(150, 255, 255, 255);
@@ -36,12 +40,13 @@ internal static class IconRenderer
     public enum State { Ok, Error, Connecting }
 
     /// <summary>
-    /// Render a square tray bitmap of side <paramref name="size"/> px. When
-    /// <paramref name="danger"/> is set, the usage fill bar is drawn red instead of blue —
-    /// the projection signal that usage will hit 100% before the window resets. When
-    /// <paramref name="showNumber"/> is false, only the fill bar is drawn (no digits).
+    /// Render a square tray bitmap of side <paramref name="size"/> px. The usage fill bar is
+    /// colored by the projection <paramref name="verdict"/>: blue while still undefined (not
+    /// enough samples yet), green when on track, and orange→red when usage is projected to hit
+    /// 100% before the window resets. When <paramref name="showNumber"/> is false, only the
+    /// fill bar is drawn (no digits).
     /// </summary>
-    public static Bitmap Render(double pct, State state, bool flash, int size, bool danger = false, bool showNumber = true)
+    public static Bitmap Render(double pct, State state, bool flash, int size, Projection verdict = Projection.Unknown, bool showNumber = true)
     {
         Color bg = flash ? BlueDeep : state switch
         {
@@ -70,7 +75,16 @@ internal static class IconRenderer
             float barH = (float)(Math.Min(pct, 1.0) * size);
             using var clip = new Region(tile);
             g.Clip = clip;
-            using (var barBrush = new SolidBrush(danger ? BarDanger : BarFill))
+            // Blue until a projection exists; green when on track; in danger, blend orange→red
+            // by how close usage is to 100%, so the bar deepens to the full alarming red as it
+            // nears the limit.
+            Color barColor = verdict switch
+            {
+                Projection.Unknown => BarUnknown,
+                Projection.Danger  => Lerp(BarOrange, BarDanger, Math.Min(Math.Max(pct, 0.0), 1.0)),
+                _                  => BarFill,
+            };
+            using (var barBrush = new SolidBrush(barColor))
                 g.FillRectangle(barBrush, 0, size - barH, size, barH);
             g.ResetClip();
         }
@@ -175,6 +189,16 @@ internal static class IconRenderer
         g.DrawString("github.com/alegauss/claude-tray", urlFont, faint, tx + 2, h - 70);
 
         return bmp;
+    }
+
+    /// <summary>Linearly interpolate between two colors; <paramref name="t"/> is clamped to [0,1].</summary>
+    private static Color Lerp(Color a, Color b, double t)
+    {
+        t = Math.Min(Math.Max(t, 0.0), 1.0);
+        return Color.FromArgb(
+            (int)Math.Round(a.R + (b.R - a.R) * t),
+            (int)Math.Round(a.G + (b.G - a.G) * t),
+            (int)Math.Round(a.B + (b.B - a.B) * t));
     }
 
     /// <summary>A pointed star polygon (alternating outer/inner radius), first point at angle <paramref name="rot"/>.</summary>

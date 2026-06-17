@@ -81,15 +81,16 @@ internal static class Program
     private static void RenderTest(string dir)
     {
         Directory.CreateDirectory(dir);
-        (double pct, IconRenderer.State st, bool fl, bool danger)[] cases =
+        (double pct, IconRenderer.State st, bool fl, Projection verdict)[] cases =
         {
-            (0.08, IconRenderer.State.Ok, false, false),
-            (0.54, IconRenderer.State.Ok, false, true),
-            (1.00, IconRenderer.State.Ok, true, true),
+            (0.08, IconRenderer.State.Ok, false, Projection.Unknown),
+            (0.08, IconRenderer.State.Ok, false, Projection.Ok),
+            (0.54, IconRenderer.State.Ok, false, Projection.Danger),
+            (1.00, IconRenderer.State.Ok, true, Projection.Danger),
         };
         foreach (int size in new[] { 16, 20, 32 })
-            foreach (var (pct, st, fl, danger) in cases)
-                using (var bmp = IconRenderer.Render(pct, st, fl, size, danger))
+            foreach (var (pct, st, fl, verdict) in cases)
+                using (var bmp = IconRenderer.Render(pct, st, fl, size, verdict))
                     bmp.Save(Path.Combine(dir, $"icon_{(int)(pct * 100)}_{size}.png"));
         Console.WriteLine("rendered to " + Path.GetFullPath(dir));
     }
@@ -406,12 +407,12 @@ internal sealed class TrayContext : ApplicationContext
         bool flash = CurrentPct() >= 0.90 && _flashOn;
         int size = Math.Max(16, SystemInformation.SmallIconSize.Width);
 
-        bool danger = CurrentProjection().verdict == Projection.Danger;
+        Projection verdict = CurrentProjection().verdict;
 
         // While connecting (no data yet), show the app logo instead of a gray "0".
         using Bitmap bmp = state == IconRenderer.State.Connecting
             ? IconRenderer.RenderLogo(size)
-            : IconRenderer.Render(CurrentPct(), state, flash, size, danger, _settings.ShowPercentage);
+            : IconRenderer.Render(CurrentPct(), state, flash, size, verdict, _settings.ShowPercentage);
         SetTrayIcon(bmp);
         _tray.Text = Truncate(BuildTooltip(), 127);
     }
