@@ -38,9 +38,10 @@ internal static class IconRenderer
     /// <summary>
     /// Render a square tray bitmap of side <paramref name="size"/> px. When
     /// <paramref name="danger"/> is set, the usage fill bar is drawn red instead of blue —
-    /// the projection signal that usage will hit 100% before the window resets.
+    /// the projection signal that usage will hit 100% before the window resets. When
+    /// <paramref name="showNumber"/> is false, only the fill bar is drawn (no digits).
     /// </summary>
-    public static Bitmap Render(double pct, State state, bool flash, int size, bool danger = false)
+    public static Bitmap Render(double pct, State state, bool flash, int size, bool danger = false, bool showNumber = true)
     {
         Color bg = flash ? BlueDeep : state switch
         {
@@ -76,6 +77,9 @@ internal static class IconRenderer
 
         // 3D beveled frame: light on top/left, dark on bottom/right → raised look.
         DrawBevel(g, new RectangleF(0, 0, size - 1, size - 1), radius, Math.Max(1f, size * 0.09f));
+
+        if (!showNumber)
+            return bmp;
 
         string num = ((int)Math.Round(Math.Min(pct, 1.0) * 100)).ToString();
 

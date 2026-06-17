@@ -17,6 +17,9 @@ internal sealed class Settings
     /// <summary>How often the tray polls the usage API, in seconds.</summary>
     public int RefreshSeconds { get; set; } = DefaultRefreshSeconds;
 
+    /// <summary>Draw the usage percentage number on the tray icon (otherwise just the fill bar).</summary>
+    public bool ShowPercentage { get; set; } = true;
+
     private static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "ClaudeTray", "settings.json");

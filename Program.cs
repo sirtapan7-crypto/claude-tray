@@ -267,6 +267,7 @@ internal sealed class TrayContext : ApplicationContext
 
         bool intervalChanged = dlg.Result.RefreshSeconds != _settings.RefreshSeconds;
         _settings.RefreshSeconds = dlg.Result.RefreshSeconds;
+        _settings.ShowPercentage = dlg.Result.ShowPercentage;
 
         try { _settings.Save(); }
         catch (Exception ex)
@@ -282,6 +283,7 @@ internal sealed class TrayContext : ApplicationContext
             _poll.Interval = _settings.RefreshSeconds * 1000;
             _poll.Start();
         }
+        Render(); // reflect a possible show-percentage change immediately
     }
 
     // Fill the "Usage insights" submenu from the cached scan; trigger a refresh for next time.
@@ -409,7 +411,7 @@ internal sealed class TrayContext : ApplicationContext
         // While connecting (no data yet), show the app logo instead of a gray "0".
         using Bitmap bmp = state == IconRenderer.State.Connecting
             ? IconRenderer.RenderLogo(size)
-            : IconRenderer.Render(CurrentPct(), state, flash, size, danger);
+            : IconRenderer.Render(CurrentPct(), state, flash, size, danger, _settings.ShowPercentage);
         SetTrayIcon(bmp);
         _tray.Text = Truncate(BuildTooltip(), 127);
     }

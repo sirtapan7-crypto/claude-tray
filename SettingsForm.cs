@@ -18,6 +18,7 @@ internal sealed class SettingsForm : Form
 
     private readonly Settings _settings;
     private readonly NumericUpDown _refresh;
+    private readonly CheckBox _showPct;
     private readonly bool _dark = IsSystemDark();
 
     /// <summary>The edited settings, valid only after the dialog returns <see cref="DialogResult.OK"/>.</summary>
@@ -26,7 +27,11 @@ internal sealed class SettingsForm : Form
     public SettingsForm(Settings current)
     {
         // Edit a copy so a Cancel leaves the caller's instance untouched.
-        _settings = new Settings { RefreshSeconds = current.RefreshSeconds };
+        _settings = new Settings
+        {
+            RefreshSeconds = current.RefreshSeconds,
+            ShowPercentage = current.ShowPercentage,
+        };
 
         Text = "Settings";
         Font = new Font("Segoe UI", 9.75f);
@@ -109,6 +114,24 @@ internal sealed class SettingsForm : Form
         fieldRow.Controls.Add(_refresh, 1, 0);
         fieldRow.Controls.Add(unit, 2, 0);
 
+        var displayHeading = new Label
+        {
+            Text = "Display",
+            AutoSize = true,
+            ForeColor = fore,
+            Font = new Font("Segoe UI Semibold", 11f),
+            Margin = new Padding(0, 18, 0, 6),
+        };
+        _showPct = new CheckBox
+        {
+            Text = "Show the usage percentage on the icon",
+            Checked = _settings.ShowPercentage,
+            AutoSize = true,
+            ForeColor = fore,
+            FlatStyle = FlatStyle.Standard,
+            Margin = new Padding(0, 0, 0, 0),
+        };
+
         var ok = new Button
         {
             Text = "Save",
@@ -127,7 +150,11 @@ internal sealed class SettingsForm : Form
         };
         StyleButton(ok, accent: true);
         StyleButton(cancel, accent: false);
-        ok.Click += (_, _) => _settings.RefreshSeconds = (int)Math.Round(_refresh.Value * 60m);
+        ok.Click += (_, _) =>
+        {
+            _settings.RefreshSeconds = (int)Math.Round(_refresh.Value * 60m);
+            _settings.ShowPercentage = _showPct.Checked;
+        };
 
         var buttons = new FlowLayoutPanel
         {
@@ -139,20 +166,22 @@ internal sealed class SettingsForm : Form
         buttons.Controls.Add(ok);     // RightToLeft → Save sits rightmost
         buttons.Controls.Add(cancel);
 
-        // Top-to-bottom stack: heading, caption, field row, buttons. The panel auto-sizes to
-        // its widest row (the caption) and the form grows to match.
+        // Top-to-bottom stack: Refresh section, Display section, buttons. The panel auto-sizes
+        // to its widest row and the form grows to match.
         var layout = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
             ColumnCount = 1,
-            RowCount = 4,
+            RowCount = 6,
         };
         layout.Controls.Add(heading, 0, 0);
         layout.Controls.Add(caption, 0, 1);
         layout.Controls.Add(fieldRow, 0, 2);
-        layout.Controls.Add(buttons, 0, 3);
+        layout.Controls.Add(displayHeading, 0, 3);
+        layout.Controls.Add(_showPct, 0, 4);
+        layout.Controls.Add(buttons, 0, 5);
         Controls.Add(layout);
 
         AcceptButton = ok;
