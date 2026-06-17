@@ -20,8 +20,10 @@ internal static class IconRenderer
     private static readonly Color Stroke      = Color.FromArgb(45, 22, 12);   // dark outline
 
     // Fill-bar color: a vivid blue, Task-Manager style — complementary to the clay base
-    // so the "in use" level reads as a totally distinct zone.
-    private static readonly Color BarFill = Color.FromArgb(40, 140, 250);
+    // so the "in use" level reads as a totally distinct zone. Turns red when the projection
+    // says usage will hit 100% before the window resets.
+    private static readonly Color BarFill   = Color.FromArgb(40, 140, 250);
+    private static readonly Color BarDanger = Color.FromArgb(255, 35, 30);   // vivid, alarming red
 
     // 3D bevel edges (top-left highlight, bottom-right shadow)
     private static readonly Color BevelLight = Color.FromArgb(150, 255, 255, 255);
@@ -29,8 +31,12 @@ internal static class IconRenderer
 
     public enum State { Ok, Error, Connecting }
 
-    /// <summary>Render a square tray bitmap of side <paramref name="size"/> px.</summary>
-    public static Bitmap Render(double pct, State state, bool flash, int size)
+    /// <summary>
+    /// Render a square tray bitmap of side <paramref name="size"/> px. When
+    /// <paramref name="danger"/> is set, the usage fill bar is drawn red instead of blue —
+    /// the projection signal that usage will hit 100% before the window resets.
+    /// </summary>
+    public static Bitmap Render(double pct, State state, bool flash, int size, bool danger = false)
     {
         Color bg = flash ? ClayDeep : state switch
         {
@@ -59,7 +65,7 @@ internal static class IconRenderer
             float barH = (float)(Math.Min(pct, 1.0) * size);
             using var clip = new Region(tile);
             g.Clip = clip;
-            using (var barBrush = new SolidBrush(BarFill))
+            using (var barBrush = new SolidBrush(danger ? BarDanger : BarFill))
                 g.FillRectangle(barBrush, 0, size - barH, size, barH);
             g.ResetClip();
         }
@@ -86,6 +92,53 @@ internal static class IconRenderer
             g.FillPath(fill, text);
 
         return bmp;
+    }
+
+    /// <summary>
+    /// Render the application icon (used for the .exe / installer / shortcuts): the same
+    /// Claude-clay beveled tile as the tray, but with a clean white spark mark instead of a
+    /// usage number — a recognizable logo at any size.
+    /// </summary>
+    public static Bitmap RenderLogo(int size)
+    {
+        var bmp = new Bitmap(size, size, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+        using var g = Graphics.FromImage(bmp);
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+        g.Clear(Color.Transparent);
+
+        float radius = size * 0.18f;
+        using var tile = RoundedRect(new RectangleF(0, 0, size - 1, size - 1), radius);
+        using (var brush = new SolidBrush(ClaudeClay))
+            g.FillPath(brush, tile);
+
+        DrawBevel(g, new RectangleF(0, 0, size - 1, size - 1), radius, Math.Max(1f, size * 0.05f));
+
+        // Four-point spark, centered — legible even at 16px.
+        float cx = size / 2f, cy = size / 2f;
+        using var spark = Star(cx, cy, size * 0.42f, size * 0.15f, 4, -Math.PI / 2);
+        using (var pen = new Pen(Stroke, Math.Max(1f, size * 0.045f)) { LineJoin = LineJoin.Round })
+            g.DrawPath(pen, spark);
+        using (var fill = new SolidBrush(Cream))
+            g.FillPath(fill, spark);
+
+        return bmp;
+    }
+
+    /// <summary>A pointed star polygon (alternating outer/inner radius), first point at angle <paramref name="rot"/>.</summary>
+    private static GraphicsPath Star(float cx, float cy, float outer, float inner, int points, double rot)
+    {
+        int n = points * 2;
+        var pts = new PointF[n];
+        for (int i = 0; i < n; i++)
+        {
+            double ang = rot + Math.PI * i / points;
+            float rad = (i % 2 == 0) ? outer : inner;
+            pts[i] = new PointF(cx + (float)(Math.Cos(ang) * rad), cy + (float)(Math.Sin(ang) * rad));
+        }
+        var p = new GraphicsPath();
+        p.AddPolygon(pts);
+        return p;
     }
 
     /// <summary>Scale and center a path into the tile, leaving the given horizontal/vertical margins (px).</summary>

@@ -29,6 +29,9 @@ internal static class StartupManager
 
 internal static class Program
 {
+    // Held for the whole process lifetime so a second launch can't spawn a duplicate tray icon.
+    private static Mutex? _instanceMutex;
+
     [STAThread]
     private static void Main(string[] args)
     {
@@ -37,6 +40,28 @@ internal static class Program
             RenderTest(args.Length >= 2 ? args[1] : ".");
             return;
         }
+
+        if (args.Length >= 1 && args[0] == "--makeicon")
+        {
+            MakeIcon(args.Length >= 2 ? args[1] : "ClaudeTray.ico");
+            return;
+        }
+
+        if (args.Length >= 1 && args[0] == "--insights")
+        {
+            var d = UsageInsights.Compute(DateTimeOffset.UtcNow.UtcDateTime);
+            if (d.Error != null) { Console.WriteLine("error: " + d.Error); return; }
+            Console.WriteLine($"24h: {d.Requests} reqs  {d.Sessions} sessions");
+            Console.WriteLine($"subagents: {d.SubagentPct:P0}   >150k ctx: {d.HeavyContextPct:P0}");
+            foreach (var (model, pct) in d.ByModel)
+                Console.WriteLine($"  {model}: {pct:P0}");
+            return;
+        }
+
+        // Single instance: if the tray app is already running, just exit — don't add a second icon.
+        _instanceMutex = new Mutex(initiallyOwned: true, @"Local\ClaudeTray.SingleInstance", out bool createdNew);
+        if (!createdNew)
+            return;
 
         Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
         ApplicationConfiguration.Initialize();
@@ -47,17 +72,56 @@ internal static class Program
     private static void RenderTest(string dir)
     {
         Directory.CreateDirectory(dir);
-        (double pct, IconRenderer.State st, bool fl)[] cases =
+        (double pct, IconRenderer.State st, bool fl, bool danger)[] cases =
         {
-            (0.08, IconRenderer.State.Ok, false),
-            (0.54, IconRenderer.State.Ok, false),
-            (1.00, IconRenderer.State.Ok, true),
+            (0.08, IconRenderer.State.Ok, false, false),
+            (0.54, IconRenderer.State.Ok, false, true),
+            (1.00, IconRenderer.State.Ok, true, true),
         };
         foreach (int size in new[] { 16, 20, 32 })
-            foreach (var (pct, st, fl) in cases)
-                using (var bmp = IconRenderer.Render(pct, st, fl, size))
+            foreach (var (pct, st, fl, danger) in cases)
+                using (var bmp = IconRenderer.Render(pct, st, fl, size, danger))
                     bmp.Save(Path.Combine(dir, $"icon_{(int)(pct * 100)}_{size}.png"));
         Console.WriteLine("rendered to " + Path.GetFullPath(dir));
+    }
+
+    // Dev helper: build a multi-resolution .ico for the app (PNG-compressed entries, valid on
+    // Windows Vista+) from the GDI+ logo renderer.
+    private static void MakeIcon(string path)
+    {
+        int[] sizes = { 16, 24, 32, 48, 64, 128, 256 };
+        byte[][] pngs = new byte[sizes.Length][];
+        for (int i = 0; i < sizes.Length; i++)
+        {
+            using Bitmap bmp = IconRenderer.RenderLogo(sizes[i]);
+            using var ms = new MemoryStream();
+            bmp.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+            pngs[i] = ms.ToArray();
+        }
+
+        using var fs = File.Create(path);
+        using var bw = new BinaryWriter(fs);
+        bw.Write((short)0);              // reserved
+        bw.Write((short)1);              // type: icon
+        bw.Write((short)sizes.Length);   // image count
+
+        int offset = 6 + 16 * sizes.Length;
+        for (int i = 0; i < sizes.Length; i++)
+        {
+            int s = sizes[i];
+            bw.Write((byte)(s >= 256 ? 0 : s)); // width (0 = 256)
+            bw.Write((byte)(s >= 256 ? 0 : s)); // height
+            bw.Write((byte)0);                  // palette
+            bw.Write((byte)0);                  // reserved
+            bw.Write((short)1);                 // color planes
+            bw.Write((short)32);                // bits per pixel
+            bw.Write(pngs[i].Length);           // image size in bytes
+            bw.Write(offset);                   // image offset
+            offset += pngs[i].Length;
+        }
+        foreach (byte[] png in pngs) bw.Write(png);
+
+        Console.WriteLine("wrote " + Path.GetFullPath(path));
     }
 }
 
@@ -71,6 +135,8 @@ internal sealed class TrayContext : ApplicationContext
 
     private readonly NotifyIcon _tray;
     private readonly ApiClient _api = new();
+    private readonly BurnTracker _burn = new();
+    private volatile InsightsData? _insights;
     private readonly System.Windows.Forms.Timer _poll = new() { Interval = 300_000 }; // 5 min
     private readonly System.Windows.Forms.Timer _flash = new() { Interval = 500 };
     private readonly List<ToolStripMenuItem> _metricItems = new();
@@ -99,7 +165,12 @@ internal sealed class TrayContext : ApplicationContext
         _flash.Start();
 
         _ = RefreshAsync(); // fire first fetch immediately
+        RecomputeInsights(); // build the 24h usage breakdown in the background
     }
+
+    // Scan local transcripts off the UI thread; the submenu reads the cached result.
+    private void RecomputeInsights()
+        => _ = Task.Run(() => _insights = UsageInsights.Compute(DateTimeOffset.UtcNow.UtcDateTime));
 
     private ContextMenuStrip BuildMenu()
     {
@@ -114,6 +185,11 @@ internal sealed class TrayContext : ApplicationContext
             showOn.DropDownItems.Add(item);
         }
         menu.Items.Add(showOn);
+
+        var insights = new ToolStripMenuItem("Usage insights (24h)");
+        insights.DropDownOpening += (_, _) => PopulateInsights(insights);
+        insights.DropDownItems.Add(new ToolStripMenuItem("…") { Enabled = false });
+        menu.Items.Add(insights);
 
         var refresh = new ToolStripMenuItem("Refresh now");
         refresh.Click += async (_, _) => await RefreshAsync();
@@ -152,15 +228,74 @@ internal sealed class TrayContext : ApplicationContext
         Render();
     }
 
+    // Fill the "Usage insights" submenu from the cached scan; trigger a refresh for next time.
+    private void PopulateInsights(ToolStripMenuItem parent)
+    {
+        parent.DropDownItems.Clear();
+        InsightsData? d = _insights;
+
+        if (d == null)
+        {
+            parent.DropDownItems.Add(new ToolStripMenuItem("Computing…") { Enabled = false });
+        }
+        else if (d.Error != null)
+        {
+            parent.DropDownItems.Add(new ToolStripMenuItem($"Unavailable: {d.Error}") { Enabled = false });
+        }
+        else if (d.Requests == 0)
+        {
+            parent.DropDownItems.Add(new ToolStripMenuItem("No usage in the last 24h") { Enabled = false });
+        }
+        else
+        {
+            void Line(string text) => parent.DropDownItems.Add(new ToolStripMenuItem(text) { Enabled = false });
+
+            Line($"Last 24h: {d.Requests} requests, {d.Sessions} sessions");
+            Line($"From subagents: {Pct(d.SubagentPct)}");
+            Line($">150k context: {Pct(d.HeavyContextPct)}");
+            if (d.ByModel.Count > 0)
+            {
+                parent.DropDownItems.Add(new ToolStripSeparator());
+                Line("By model:");
+                foreach (var (model, pct) in d.ByModel.Take(5))
+                    Line($"   {model}: {Pct(pct)}");
+            }
+        }
+
+        parent.DropDownItems.Add(new ToolStripSeparator());
+        var refresh = new ToolStripMenuItem("Recompute");
+        refresh.Click += (_, _) => RecomputeInsights();
+        parent.DropDownItems.Add(refresh);
+
+        // Keep the cache reasonably fresh for the next open.
+        RecomputeInsights();
+    }
+
     private async Task RefreshAsync()
     {
         _data = await _api.FetchAsync();
+        if (_data is { Error: null })
+        {
+            long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            foreach (string key in Metrics)
+                _burn.Record(key, _data.Metric(key), _data.ResetOf(key), now);
+        }
         _flashOn = false;
         Render();
+        RecomputeInsights();
     }
 
     private double CurrentPct()
         => _data != null && _data.Error == null ? Math.Min(1.0, _data.Metric(_metric)) : 0.0;
+
+    // Projection for the currently displayed metric (session vs. week vs. extra).
+    private (Projection verdict, double eta) CurrentProjection()
+    {
+        if (_data is not { Error: null }) return (Projection.Unknown, 0);
+        long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var (verdict, eta, _) = _burn.Project(_metric, _data.Metric(_metric), _data.ResetOf(_metric), now);
+        return (verdict, eta);
+    }
 
     private void Render()
     {
@@ -172,7 +307,9 @@ internal sealed class TrayContext : ApplicationContext
         bool flash = CurrentPct() >= 0.90 && _flashOn;
         int size = Math.Max(16, SystemInformation.SmallIconSize.Width);
 
-        using Bitmap bmp = IconRenderer.Render(CurrentPct(), state, flash, size);
+        bool danger = CurrentProjection().verdict == Projection.Danger;
+
+        using Bitmap bmp = IconRenderer.Render(CurrentPct(), state, flash, size, danger);
         SetTrayIcon(bmp);
         _tray.Text = Truncate(BuildTooltip(), 127);
     }
@@ -209,6 +346,15 @@ internal sealed class TrayContext : ApplicationContext
             string re = _data.ResetExtra > 0 ? FmtDays(_data.ResetExtra - now) : "--";
             lines.Add($"Extra: {Pct(_data.Extra)}  ⟳ {re}");
         }
+
+        var (verdict, eta) = CurrentProjection();
+        if (verdict == Projection.Danger)
+            lines.Add($"⚠ Projection: 100% in {FmtDays(eta)} (before reset)");
+        else if (verdict == Projection.Ok)
+            lines.Add(double.IsInfinity(eta)
+                ? "✓ Projection: on track"
+                : $"✓ Projection: 100% in {FmtDays(eta)} (after reset)");
+
         lines.Add($"Status: {_data.Status}");
         return string.Join("\n", lines);
     }

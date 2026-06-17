@@ -7,6 +7,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>ClaudeTray.ico</ApplicationIcon>
     <AssemblyName>ClaudeTray</AssemblyName>
     <RootNamespace>ClaudeTray</RootNamespace>
     <!-- Single self-contained .exe when published (see README) -->

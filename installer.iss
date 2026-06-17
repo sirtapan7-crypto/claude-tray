@@ -21,6 +21,7 @@ DefaultDirName={localappdata}\ClaudeTray
 DisableProgramGroupPage=yes
 DefaultGroupName={#MyAppName}
 UninstallDisplayIcon={app}\{#MyAppExeName}
+SetupIconFile=ClaudeTray.ico
 OutputDir=dist
 OutputBaseFilename=ClaudeTray-Setup
 Compression=lzma2

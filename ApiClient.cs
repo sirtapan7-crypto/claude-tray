@@ -24,6 +24,13 @@ internal sealed class UsageData
         "extra" => Extra,
         _ => Session5h,
     };
+
+    public double ResetOf(string key) => key switch
+    {
+        "7d" => Reset7d,
+        "extra" => ResetExtra,
+        _ => Reset5h,
+    };
 }
 
 /// <summary>
