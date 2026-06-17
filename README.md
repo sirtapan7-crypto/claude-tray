@@ -1,7 +1,23 @@
-# Claude Code Tray — C# / .NET
+<div align="center">
 
-A native rewrite (WinForms `NotifyIcon` + GDI+) of the **Claude Code** usage monitor
-that lives **only in the Windows tray** and shows the **usage percentage**.
+# 🟧 Claude Code Tray
+
+**A native Windows tray monitor for your Claude Code usage — at a glance, always on.**
+
+A WinForms (`NotifyIcon` + GDI+) rewrite that lives **only in the Windows tray** and
+shows your **rate-limit usage percentage** as a crisp, DPI-aware icon.
+
+![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6?logo=windows&logoColor=white)
+![.NET](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet&logoColor=white)
+![C#](https://img.shields.io/badge/C%23-WinForms%20%2B%20GDI%2B-239120?logo=csharp&logoColor=white)
+
+<img src="docs/tooltip.png" alt="Tray icon with usage tooltip" width="46%">
+&nbsp;&nbsp;
+<img src="docs/menu.png" alt="Right-click menu" width="46%">
+
+</div>
+
+---
 
 Why .NET instead of Python: the number is drawn as a **vector** (`GraphicsPath`,
 with an outline), **at the actual size** the tray requests (`SM_CXSMICON`) and with
