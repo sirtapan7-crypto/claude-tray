@@ -145,15 +145,20 @@ internal sealed class TrayContext : ApplicationContext
     private readonly NotifyIcon _tray;
     private readonly ApiClient _api = new();
     private readonly BurnTracker _burn = new();
+    private readonly Updater _updater = new();
     private volatile InsightsData? _insights;
     private readonly System.Windows.Forms.Timer _poll = new() { Interval = 300_000 }; // 5 min
     private readonly System.Windows.Forms.Timer _flash = new() { Interval = 500 };
+    private readonly System.Windows.Forms.Timer _updateCheck = new() { Interval = 21_600_000 }; // 6 h
     private readonly List<ToolStripMenuItem> _metricItems = new();
+    private ToolStripMenuItem _updateItem = null!;
 
     private UsageData? _data;
     private DateTime? _lastRefresh;
+    private UpdateInfo? _update;
     private string _metric = "5h";
     private bool _flashOn;
+    private bool _updating;
     private IntPtr _iconHandle = IntPtr.Zero;
 
     [DllImport("user32.dll", SetLastError = true)]
@@ -173,8 +178,13 @@ internal sealed class TrayContext : ApplicationContext
         _poll.Start();
         _flash.Tick += (_, _) => { if (CurrentPct() >= 0.90) { _flashOn = !_flashOn; Render(); } };
         _flash.Start();
+        _updateCheck.Tick += async (_, _) => await CheckForUpdateAsync();
+        _updateCheck.Start();
+
+        _tray.BalloonTipClicked += (_, _) => { if (_update != null) _ = ApplyUpdateAsync(); };
 
         _ = RefreshAsync(); // fire first fetch immediately
+        _ = CheckForUpdateAsync(); // look for a newer release on launch
         RecomputeInsights(); // build the 24h usage breakdown in the background
     }
 
@@ -204,6 +214,11 @@ internal sealed class TrayContext : ApplicationContext
         var refresh = new ToolStripMenuItem("Refresh now");
         refresh.Click += async (_, _) => await RefreshAsync();
         menu.Items.Add(refresh);
+
+        // Hidden until a newer release is found; then shows "Update to vX.Y.Z".
+        _updateItem = new ToolStripMenuItem("Update available") { Visible = false, Font = new Font(menu.Font, FontStyle.Bold) };
+        _updateItem.Click += (_, _) => { if (!_updating) _ = ApplyUpdateAsync(); };
+        menu.Items.Add(_updateItem);
 
         var startup = new ToolStripMenuItem("Start with Windows") { Checked = StartupManager.IsEnabled() };
         startup.Click += (_, _) =>
@@ -294,6 +309,46 @@ internal sealed class TrayContext : ApplicationContext
         _flashOn = false;
         Render();
         RecomputeInsights();
+    }
+
+    // Ask GitHub for the latest release; if newer, surface it in the menu and notify once.
+    private async Task CheckForUpdateAsync()
+    {
+        if (_updating) return;
+        UpdateInfo? info = await _updater.CheckAsync();
+        if (info == null || (_update != null && info.Version <= _update.Version)) return;
+
+        _update = info;
+        _updateItem.Text = $"Update to {info.Tag}";
+        _updateItem.Visible = true;
+
+        _tray.BalloonTipTitle = "Claude Code Tray — update available";
+        _tray.BalloonTipText = $"Version {info.Version} is available (you have {Updater.CurrentVersion}). Click to install.";
+        _tray.ShowBalloonTip(10_000);
+    }
+
+    // Download the installer and hand off to it; the app exits so its .exe can be replaced.
+    private async Task ApplyUpdateAsync()
+    {
+        if (_updating || _update is not { } info) return;
+        _updating = true;
+        _updateItem.Text = $"Downloading {info.Tag}…";
+        _updateItem.Enabled = false;
+
+        try
+        {
+            string setup = await _updater.DownloadAsync(info);
+            Updater.RunInstaller(setup);
+            ExitApp(); // release the single-instance mutex and unlock the .exe for the installer
+        }
+        catch (Exception ex)
+        {
+            _updating = false;
+            _updateItem.Text = $"Update to {info.Tag}";
+            _updateItem.Enabled = true;
+            MessageBox.Show($"Could not download the update:\n{ex.Message}",
+                "Claude Code Tray", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
     }
 
     private double CurrentPct()
@@ -396,6 +451,7 @@ internal sealed class TrayContext : ApplicationContext
     {
         _poll.Stop();
         _flash.Stop();
+        _updateCheck.Stop();
         _tray.Visible = false;
         if (_iconHandle != IntPtr.Zero) DestroyIcon(_iconHandle);
         _tray.Dispose();

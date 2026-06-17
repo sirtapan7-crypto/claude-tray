@@ -29,6 +29,10 @@ SolidCompression=yes
 WizardStyle=modern
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
+; In-app self-update: the running app exits itself before launching the installer; this is a
+; backup that closes any leftover instance via Restart Manager, without forcing a reboot.
+CloseApplications=yes
+RestartApplications=no
 
 [Languages]
 Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
@@ -52,8 +56,10 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; \
     Flags: uninsdeletevalue; Tasks: startupicon
 
 [Run]
+; postinstall (no skipifsilent) so a silent self-update relaunches the app automatically;
+; in an interactive install it appears as the usual checked "start now" finish-page option.
 Filename: "{app}\{#MyAppExeName}"; Description: "Iniciar o {#MyAppName} agora"; \
-    Flags: nowait postinstall skipifsilent
+    Flags: nowait postinstall
 
 [UninstallRun]
 ; Best-effort: close the running tray app before uninstalling.

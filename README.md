@@ -160,8 +160,21 @@ uninstaller. The script is [installer.iss](installer.iss).
 - **Show on icon** — Session 5h / Week 7d / Extra
 - **Usage insights (24h)** — local cost breakdown from session transcripts (see below)
 - **Refresh now** — immediate API read
+- **Update to vX.Y.Z** — appears only when a newer GitHub release exists; click to download and
+  install it (see below)
 - **Start with Windows** — toggle the `HKCU\…\Run` autostart entry
 - **Quit**
+
+## Updates
+
+The app checks GitHub Releases on launch and every 6 hours. When a newer release is published,
+it shows a notification balloon and an **Update to vX.Y.Z** menu item. Clicking either downloads
+`ClaudeTray-Setup.exe` from that release to `%TEMP%` and runs it silently; the app closes so its
+`.exe` can be replaced, the installer upgrades in place (same `AppId`), and relaunches it. No
+admin rights are needed — it's a per-user install.
+
+Publishing a new version is just: bump `<Version>` in `ClaudeTray.csproj` (and `installer.iss`),
+build the installer, and attach `ClaudeTray-Setup.exe` to a GitHub release tagged `vX.Y.Z`.
 
 ## Structure
 
@@ -172,6 +185,7 @@ uninstaller. The script is [installer.iss](installer.iss).
 | `BurnTracker.cs` | tracks utilization history, estimates the burn rate, projects exhaustion |
 | `UsageInsights.cs` | aggregates the last 24h of session transcripts into a cost-weighted breakdown |
 | `IconRenderer.cs` | draws the icon with GDI+ (vector + outline + projection dot) at the actual size |
+| `Updater.cs` | checks GitHub Releases and downloads/runs the installer for in-app self-update |
 
 > Dev tips: `dotnet run -- --render <dir>` dumps sample PNGs at 16/20/32 px for visual
 > inspection; `dotnet run -- --insights` prints the 24h usage breakdown to the console;
