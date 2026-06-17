@@ -1,92 +1,93 @@
 # Claude Code Tray — C# / .NET
 
-Reescrita nativa (WinForms `NotifyIcon` + GDI+) do monitor de uso do **Claude Code**
-que vive **somente na bandeja (tray) do Windows** e mostra a **porcentagem de uso**.
+A native rewrite (WinForms `NotifyIcon` + GDI+) of the **Claude Code** usage monitor
+that lives **only in the Windows tray** and shows the **usage percentage**.
 
-Por que .NET em vez do Python: o número é desenhado como **vetor** (`GraphicsPath`,
-com contorno), **no tamanho real** que a tray pede (`SM_CXSMICON`) e com **DPI awareness**
-(`PerMonitorV2`). Nada de reduzir um bitmap de 64px — o número fica nítido, sobretudo em
-telas 125–200% (ícones de 20–32px).
+Why .NET instead of Python: the number is drawn as a **vector** (`GraphicsPath`,
+with an outline), **at the actual size** the tray requests (`SM_CXSMICON`) and with
+**DPI awareness** (`PerMonitorV2`). No downscaling a 64px bitmap — the number stays
+crisp, especially on 125–200% displays (20–32px icons).
 
-## Visual
+## Look
 
-- Fundo: clay/coral do Claude `#D97757`
-- **Barra de preenchimento vertical em azul** (estilo Gerenciador de Tarefas) sobe de
-  baixo pra cima, proporcional ao uso (50% = metade de baixo azul; 100% = tile todo azul)
-- **Borda 3D (chanfro)**: realce claro no topo/esquerda e sombra embaixo/direita → relevo
-- Número: dígitos grandes, brancos com **contorno escuro** (legível em qualquer tamanho)
-- ≥90%: o fundo pisca
-- Âmbar = erro de API · cinza = conectando
+- Background: Claude clay/coral `#D97757`
+- **Vertical blue fill bar** (Task Manager style) rises from the bottom up,
+  proportional to usage (50% = bottom half blue; 100% = whole tile blue)
+- **3D bevel border**: light highlight on the top/left and shadow on the bottom/right → relief
+- Number: large digits, white with a **dark outline** (readable at any size)
+- ≥90%: the background flashes
+- Amber = API error · gray = connecting
 
-Tooltip (passar o mouse): sessão 5h, semana 7d, uso extra, contagem até o reset e status.
+Tooltip (hover): 5h session, 7d week, extra usage, countdown to reset and status.
 
-## Fonte dos dados
+## Data source
 
-Uma chamada mínima à API da Anthropic (Haiku, 1 token) a cada 5 min lê os headers
-`anthropic-ratelimit-unified-*`, usando o token OAuth que o Claude Code mantém em
-`~/.claude/.credentials.json`. Nenhuma configuração extra.
+A minimal call to the Anthropic API (Haiku, 1 token) every 5 min reads the
+`anthropic-ratelimit-unified-*` headers, using the OAuth token Claude Code keeps in
+`~/.claude/.credentials.json`. No extra configuration.
 
-## Requisitos
+## Requirements
 
 - Windows 10/11
-- .NET 10 SDK (para compilar) — o `.exe` self-contained não exige .NET instalado para rodar
-- Claude Code instalado e logado (rode `claude` ao menos uma vez)
+- .NET 10 SDK (to build) — the self-contained `.exe` does not require .NET to be installed to run
+- Claude Code installed and logged in (run `claude` at least once)
 
-## Compilar e rodar
+## Build and run
 
 ```
-dotnet run -c Release            # compila e executa
+dotnet run -c Release            # build and run
 ```
 
-### Gerar um .exe único (self-contained, sem dependências)
+### Produce a single .exe (self-contained, no dependencies)
 
 ```
 dotnet publish -c Release
 ```
 
-O executável sai em `bin\Release\net10.0-windows\win-x64\publish\ClaudeTray.exe`.
-Pode ser copiado para qualquer lugar e roda sem .NET instalado.
+The executable is emitted at `bin\Release\net10.0-windows\win-x64\publish\ClaudeTray.exe`.
+It can be copied anywhere and runs without .NET installed.
 
-### Iniciar com o Windows
+### Start with Windows
 
-Três formas, da mais simples à mais completa:
+Three ways, from simplest to most complete:
 
-1. **Pelo menu do app** (recomendado): botão direito no ícone → **Start with Windows**.
-   Grava/remove uma chave em `HKCU\…\Run` apontando para o `.exe` atual. Sem admin.
-2. **Instalador** (veja abaixo): marque "Iniciar com o Windows" durante a instalação.
-3. **Manual**: `Win + R` → `shell:startup` → crie um atalho para o `ClaudeTray.exe`.
+1. **From the app menu** (recommended): right-click the icon → **Start with Windows**.
+   Writes/removes a key under `HKCU\…\Run` pointing to the current `.exe`. No admin.
+2. **Installer** (see below): check "Start with Windows" during installation.
+3. **Manual**: `Win + R` → `shell:startup` → create a shortcut to `ClaudeTray.exe`.
 
-### Gerar o instalador (Inno Setup)
+### Build the installer (Inno Setup)
 
-Requer o [Inno Setup 6](https://jrsoftware.org/isdl.php).
+Requires [Inno Setup 6](https://jrsoftware.org/isdl.php).
 
 ```
 dotnet publish -c Release
 "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
 ```
 
-Gera `dist\ClaudeTray-Setup.exe` — instalação per-user (sem admin) em
-`%LocalAppData%\ClaudeTray`, com atalho no Menu Iniciar, opção de autostart e
-desinstalador. O script é o [installer.iss](installer.iss).
+Produces `dist\ClaudeTray-Setup.exe` — a per-user install (no admin) at
+`%LocalAppData%\ClaudeTray`, with a Start Menu shortcut, an autostart option and an
+uninstaller. The script is [installer.iss](installer.iss).
 
-## Menu (botão direito no ícone)
+## Menu (right-click the icon)
 
 - **Show on icon** — Session 5h / Week 7d / Extra
-- **Refresh now** — leitura imediata da API
+- **Refresh now** — immediate API read
+- **Start with Windows** — toggle the `HKCU\…\Run` autostart entry
 - **Quit**
 
-## Estrutura
+## Structure
 
-| Arquivo | Responsabilidade |
+| File | Responsibility |
 |---|---|
-| `Program.cs` | entrada, `ApplicationContext`, tray icon, menu, timers de poll/flash |
-| `ApiClient.cs` | lê credenciais, chama a API, parseia os headers de rate-limit |
-| `IconRenderer.cs` | desenha o ícone com GDI+ (vetor + contorno) no tamanho real |
+| `Program.cs` | entry point, `ApplicationContext`, tray icon, menu, poll/flash timers |
+| `ApiClient.cs` | reads credentials, calls the API, parses the rate-limit headers |
+| `IconRenderer.cs` | draws the icon with GDI+ (vector + outline) at the actual size |
 
-> Dica de dev: `dotnet run -- --render <dir>` despeja PNGs de exemplo nos tamanhos
-> 16/20/32 px para inspeção visual.
+> Dev tip: `dotnet run -- --render <dir>` dumps sample PNGs at 16/20/32 px
+> for visual inspection.
 
-## Solução de problemas
+## Troubleshooting
 
-- **Ícone cinza** → ainda conectando; aguarde a primeira chamada.
-- **Ícone âmbar / tooltip "API error"** → token pode ter expirado. Rode `claude` no terminal.
+- **Gray icon** → still connecting; wait for the first call.
+- **Amber icon / "API error" tooltip** → token may have expired. Run `claude` in the terminal.
