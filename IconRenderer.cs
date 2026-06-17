@@ -86,7 +86,7 @@ internal static class IconRenderer
         // Foreground: the digits only, large but with a clear left/right margin.
         using var text = new GraphicsPath();
         text.AddString(num, family, bold, em, new PointF(0, 0), StringFormat.GenericTypographic);
-        FitToTile(text, size, size * 0.16f, size * 0.16f);
+        FitToTile(text, size, size * 0.16f, size * 0.24f);
 
         // Dark outline then white fill — the outline keeps the number legible when tiny.
         float penW = Math.Max(1.2f, size * 0.11f);
@@ -192,7 +192,12 @@ internal static class IconRenderer
     /// <summary>Scale and center a path into the tile, leaving the given horizontal/vertical margins (px).</summary>
     private static void FitToTile(GraphicsPath p, int size, float padX, float padY)
     {
-        RectangleF b = p.GetBounds();
+        // GetBounds() on a glyph path returns the bounding box of the Bézier *control points*,
+        // which bulge asymmetrically past the actual ink (e.g. the curves in "5"/"4") and throw
+        // the centering off. Measure on a flattened copy so the bounds are the true ink extent.
+        using var probe = (GraphicsPath)p.Clone();
+        probe.Flatten();
+        RectangleF b = probe.GetBounds();
         if (b.Width <= 0 || b.Height <= 0) return;
         float scale = Math.Min((size - 2 * padX) / b.Width, (size - 2 * padY) / b.Height);
         using var m = new Matrix();
