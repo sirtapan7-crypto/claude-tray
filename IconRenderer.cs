@@ -11,18 +11,22 @@ namespace ClaudeTray;
 /// </summary>
 internal static class IconRenderer
 {
-    // Claude visual identity
+    // Claude visual identity (brand color — kept for the app logo)
     private static readonly Color ClaudeClay = Color.FromArgb(217, 119, 87);
-    private static readonly Color ClayDeep   = Color.FromArgb(160, 74, 50);   // flash background
     private static readonly Color Amber      = Color.FromArgb(227, 179, 65);  // API-error
     private static readonly Color Dim         = Color.FromArgb(90, 96, 104);  // connecting
     private static readonly Color Cream       = Color.White;                  // the number
-    private static readonly Color Stroke      = Color.FromArgb(45, 22, 12);   // dark outline
+    private static readonly Color Stroke      = Color.FromArgb(20, 38, 60);   // dark outline
 
-    // Fill-bar color: a vivid blue, Task-Manager style — complementary to the clay base
-    // so the "in use" level reads as a totally distinct zone. Turns red when the projection
-    // says usage will hit 100% before the window resets.
-    private static readonly Color BarFill   = Color.FromArgb(40, 140, 250);
+    // Tray status tile: a calm slate blue-gray base (orange read too much like a permanent
+    // warning), with a deeper slate used while flashing at >=90%.
+    private static readonly Color TileBlue  = Color.FromArgb(96, 120, 145);
+    private static readonly Color BlueDeep  = Color.FromArgb(58, 76, 96);     // flash background
+
+    // Fill-bar color: a neon green rising from the bottom, Task-Manager style — reads as a
+    // distinct "in use" zone over the blue base. Turns red when the projection says usage
+    // will hit 100% before the window resets.
+    private static readonly Color BarFill   = Color.FromArgb(57, 230, 70);
     private static readonly Color BarDanger = Color.FromArgb(255, 35, 30);   // vivid, alarming red
 
     // 3D bevel edges (top-left highlight, bottom-right shadow)
@@ -38,11 +42,11 @@ internal static class IconRenderer
     /// </summary>
     public static Bitmap Render(double pct, State state, bool flash, int size, bool danger = false)
     {
-        Color bg = flash ? ClayDeep : state switch
+        Color bg = flash ? BlueDeep : state switch
         {
             State.Error => Amber,
             State.Connecting => Dim,
-            _ => ClaudeClay,
+            _ => TileBlue,
         };
 
         var bmp = new Bitmap(size, size, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
