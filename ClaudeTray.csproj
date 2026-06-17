@@ -10,7 +10,11 @@
     <ApplicationIcon>ClaudeTray.ico</ApplicationIcon>
     <AssemblyName>ClaudeTray</AssemblyName>
     <RootNamespace>ClaudeTray</RootNamespace>
-    <Version>1.2.0</Version>
+    <!-- Single source of truth for the app version. installer.iss reads it from the built
+         .exe, and update-winget.ps1 reads it from here — no need to edit those by hand. -->
+    <Version>1.2.2</Version>
+    <!-- Keep ProductVersion exactly "x.y.z" (no +commit suffix) so the installer can reuse it. -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <!-- Single self-contained .exe when published (see README) -->
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>

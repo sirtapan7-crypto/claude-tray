@@ -5,10 +5,12 @@
 ; Output: dist\ClaudeTray-Setup.exe
 
 #define MyAppName "Claude Code Tray"
-#define MyAppVersion "1.2.0"
 #define MyAppPublisher "Alexandre Oliveira"
 #define MyAppExeName "ClaudeTray.exe"
 #define MyPublishDir "bin\Release\net10.0-windows\win-x64\publish"
+; Version is read straight from the published .exe (set by <Version> in ClaudeTray.csproj),
+; so there is no separate version to bump here. Requires the publish step to have run first.
+#define MyAppVersion GetStringFileInfo(MyPublishDir + "\" + MyAppExeName, PRODUCT_VERSION)
 
 [Setup]
 AppId={{8F3C2A14-7B6D-4E9A-9C21-CLAUDETRAY001}
