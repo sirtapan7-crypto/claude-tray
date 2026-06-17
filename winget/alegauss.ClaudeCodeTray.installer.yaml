@@ -12,7 +12,7 @@ ReleaseDate: 2026-06-17
 Installers:
   - Architecture: x64
     InstallerUrl: https://github.com/alegauss/claude-tray/releases/download/v1.2.2/ClaudeTray-Setup.exe
-    InstallerSha256: 752A787317CE2B1E963BE8D470A91B07A80DB597691B4DF82DC048DB1B5D7D3E
+    InstallerSha256: 3BE87C22CEC3761AF4380CBCCF1DBCD520D90BE2E3D985C57AD781823D74234D
     AppsAndFeaturesEntries:
       - DisplayName: Claude Code Tray
         Publisher: Alexandre Oliveira
