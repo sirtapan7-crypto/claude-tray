@@ -16,10 +16,17 @@ if errorlevel 1 (
 )
 
 REM --- 2) Localiza o compilador do Inno Setup (ISCC.exe) -------------------
-set "ISCC=C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
-if not exist "%ISCC%" set "ISCC=C:\Program Files\Inno Setup 6\ISCC.exe"
+REM Procura nas instalacoes machine-wide e por-usuario (%LocalAppData%), e por fim no PATH.
+set "ISCC="
+set "P1=%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe"
+set "P2=%ProgramFiles%\Inno Setup 6\ISCC.exe"
+set "P3=%LocalAppData%\Programs\Inno Setup 6\ISCC.exe"
+if exist "%P1%" set "ISCC=%P1%"
+if not defined ISCC if exist "%P2%" set "ISCC=%P2%"
+if not defined ISCC if exist "%P3%" set "ISCC=%P3%"
+if not defined ISCC for /f "delims=" %%I in ('where ISCC.exe 2^>nul') do if not defined ISCC set "ISCC=%%I"
 
-if not exist "%ISCC%" (
+if not defined ISCC (
     echo.
     echo *** ERRO: ISCC.exe nao encontrado. ***
     echo Instale o Inno Setup 6: https://jrsoftware.org/isdl.php
