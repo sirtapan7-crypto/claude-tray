@@ -309,7 +309,10 @@ internal sealed class TrayContext : ApplicationContext
 
         bool danger = CurrentProjection().verdict == Projection.Danger;
 
-        using Bitmap bmp = IconRenderer.Render(CurrentPct(), state, flash, size, danger);
+        // While connecting (no data yet), show the app logo instead of a gray "0".
+        using Bitmap bmp = state == IconRenderer.State.Connecting
+            ? IconRenderer.RenderLogo(size)
+            : IconRenderer.Render(CurrentPct(), state, flash, size, danger);
         SetTrayIcon(bmp);
         _tray.Text = Truncate(BuildTooltip(), 127);
     }

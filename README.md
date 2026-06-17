@@ -1,6 +1,8 @@
 <div align="center">
 
-# 🟧 Claude Code Tray
+<img src="docs/logo.png" alt="Claude Code Tray logo" width="120">
+
+# Claude Code Tray
 
 **A native Windows tray monitor for your Claude Code usage — at a glance, always on.**
 
@@ -33,7 +35,7 @@ crisp, especially on 125–200% displays (20–32px icons).
 - **3D bevel border**: light highlight on the top/left and shadow on the bottom/right → relief
 - Number: large digits, white with a **dark outline** (readable at any size)
 - ≥90%: the background flashes
-- Amber = API error · gray = connecting
+- Amber = API error · while connecting (before the first reading) it shows the **app logo**
 
 The **app icon** (`.exe`, installer, shortcuts) is the same clay tile with a white spark mark —
 generated as a multi-resolution `.ico` from the same GDI+ renderer (`ClaudeTray.ico`).
@@ -58,6 +60,10 @@ once there is enough history to trust the trend; resets are detected and clear t
 
 ## Usage insights (last 24h)
 
+<div align="center">
+<img src="docs/usage.png" alt="Usage insights submenu" width="70%">
+</div>
+
 The right-click menu has a **Usage insights (24h)** submenu computed locally from your
 Claude Code session transcripts (`~/.claude/projects/**/*.jsonl`) — no API call. Tokens are
 weighted by per-model price (Opus/Sonnet/Haiku/Fable) so each percentage reflects share of
@@ -77,6 +83,30 @@ A minimal call to the Anthropic API (Haiku, 1 token) every 5 min reads the
 `anthropic-ratelimit-unified-*` headers, using the OAuth token Claude Code keeps in
 `~/.claude/.credentials.json`. No extra configuration. The usage-insights submenu instead
 reads the local session transcripts (see above).
+
+## Credentials (setup)
+
+There is **nothing to configure manually** — the app reuses Claude Code's own credentials.
+On each poll it reads the OAuth token from:
+
+```
+%USERPROFILE%\.claude\.credentials.json
+```
+
+looking up the `claudeAiOauth.accessToken` field. That file is created and refreshed
+automatically by Claude Code when you log in. There is no API key to paste and no
+environment variable to set.
+
+1. **Install Claude Code** (if you don't have it yet).
+2. **Log in at least once** by running `claude` in a terminal — this writes
+   `~/.claude/.credentials.json` with the OAuth token.
+3. **Run the tray app** — it finds the file on its own (see
+   [Build and run](#build-and-run)).
+
+If you want to confirm the token exists, check that
+`%USERPROFILE%\.claude\.credentials.json` contains `claudeAiOauth.accessToken`. When the
+token expires the icon turns amber — just run `claude` again to refresh it (see
+[Troubleshooting](#troubleshooting)).
 
 ## Requirements
 
@@ -145,7 +175,7 @@ uninstaller. The script is [installer.iss](installer.iss).
 
 ## Troubleshooting
 
-- **Gray icon** → still connecting; wait for the first call.
+- **Logo icon (spark)** → still connecting; wait for the first call.
 - **Amber icon / "API error" tooltip** → token may have expired. Run `claude` in the terminal.
 - **Only one icon even if launched twice** → by design: a named mutex enforces a single
   instance, so re-running the `.exe` while it's already in the tray just exits silently.
