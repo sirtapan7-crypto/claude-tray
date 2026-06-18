@@ -109,7 +109,8 @@ environment variable to set.
 
 If you want to confirm the token exists, check that
 `%USERPROFILE%\.claude\.credentials.json` contains `claudeAiOauth.accessToken`. When the
-token expires the icon turns amber — just run `claude` again to refresh it (see
+token expires the icon turns amber and the tooltip reads **not authenticated** — right-click →
+**Open Claude Code** (or run `claude` yourself) to refresh it, then **Refresh now** (see
 [Troubleshooting](#troubleshooting)).
 
 ## Requirements
@@ -175,6 +176,8 @@ installs pick it up automatically (see [Updates](#updates)).
 - **Show on icon** — Session 5h / Week 7d / Extra
 - **Usage insights (24h)** — local cost breakdown from session transcripts (see below)
 - **Refresh now** — immediate API read
+- **Open Claude Code** — launches the Claude Code CLI so it re-authenticates and refreshes the
+  OAuth token; the recovery path when the icon shows a *not authenticated* (HTTP 401) state
 - **Update to vX.Y.Z** — appears only when a newer GitHub release exists; click to download and
   install it (see below)
 - **Start with Windows** — toggle the `HKCU\…\Run` autostart entry
@@ -209,7 +212,10 @@ build the installer, and attach `ClaudeTray-Setup.exe` to a GitHub release tagge
 ## Troubleshooting
 
 - **Logo icon (spark)** → still connecting; wait for the first call.
-- **Amber icon / "API error" tooltip** → token may have expired. Run `claude` in the terminal.
+- **Amber icon / "not authenticated" tooltip (HTTP 401)** → the OAuth token expired. Right-click
+  → **Open Claude Code** to refresh it (it re-authenticates on launch), then **Refresh now**.
+  This commonly happens on the first poll after a reboot, before Claude Code has refreshed the token.
+- **Amber icon / "API error" tooltip** → a network/API problem. Check connectivity and retry.
 - **Only one icon even if launched twice** → by design: a named mutex enforces a single
   instance, so re-running the `.exe` while it's already in the tray just exits silently.
 
