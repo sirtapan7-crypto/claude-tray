@@ -4,10 +4,12 @@ using Microsoft.Win32;
 namespace ClaudeTray;
 
 /// <summary>
-/// A small, modern settings dialog. Follows the system light/dark theme (including the
+/// A small, modern settings window. Follows the system light/dark theme (including the
 /// Windows 11 immersive dark title bar), uses the Segoe UI system font, and lays its fields
 /// out in a grid so new options can be added as extra rows without reflowing the window.
-/// Returns the edited <see cref="Settings"/> via <see cref="Result"/> when accepted.
+/// Shown non-modally (it is a normal, resizable window that appears in the taskbar) so it can
+/// grow into a richer settings surface over time; on Save it applies the edited
+/// <see cref="Settings"/> through the <c>onSave</c> callback supplied at construction.
 /// </summary>
 internal sealed class SettingsForm : Form
 {
@@ -17,16 +19,15 @@ internal sealed class SettingsForm : Form
     private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
 
     private readonly Settings _settings;
+    private readonly Action<Settings> _onSave;
     private readonly NumericUpDown _refresh;
     private readonly CheckBox _showPct;
     private readonly bool _dark = IsSystemDark();
 
-    /// <summary>The edited settings, valid only after the dialog returns <see cref="DialogResult.OK"/>.</summary>
-    public Settings Result => _settings;
-
-    public SettingsForm(Settings current)
+    public SettingsForm(Settings current, Action<Settings> onSave)
     {
-        // Edit a copy so a Cancel leaves the caller's instance untouched.
+        _onSave = onSave;
+        // Edit a copy so closing without saving leaves the caller's instance untouched.
         _settings = new Settings
         {
             RefreshSeconds = current.RefreshSeconds,
@@ -35,16 +36,18 @@ internal sealed class SettingsForm : Form
 
         Text = "Settings";
         Font = new Font("Segoe UI", 9.75f);
-        FormBorderStyle = FormBorderStyle.FixedDialog;
+        // A normal, resizable window (not a modal dialog) so it can host more settings later.
+        FormBorderStyle = FormBorderStyle.Sizable;
         StartPosition = FormStartPosition.CenterScreen;
-        MaximizeBox = MinimizeBox = ShowInTaskbar = false;
+        ShowInTaskbar = true;
+        MaximizeBox = true;
         AutoScaleMode = AutoScaleMode.Dpi;
-        // Grow to fit the content (the caption is the widest element) so nothing clips at any
-        // DPI, with a sensible minimum width.
-        AutoSize = true;
-        AutoSizeMode = AutoSizeMode.GrowAndShrink;
-        MinimumSize = new Size(380, 0);
+        ClientSize = new Size(560, 420);
+        MinimumSize = new Size(420, 320);
+        // Open maximized; the window can host much more as settings grow over time.
+        WindowState = FormWindowState.Maximized;
         Padding = new Padding(20, 18, 20, 16);
+        try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { /* default icon */ }
 
         Color back = _dark ? Color.FromArgb(32, 32, 32) : Color.White;
         Color fore = _dark ? Color.FromArgb(240, 240, 240) : Color.FromArgb(30, 30, 30);
@@ -135,7 +138,6 @@ internal sealed class SettingsForm : Form
         var ok = new Button
         {
             Text = "Save",
-            DialogResult = DialogResult.OK,
             AutoSize = true,
             Padding = new Padding(14, 4, 14, 4),
             Margin = new Padding(8, 0, 0, 0),
@@ -143,7 +145,6 @@ internal sealed class SettingsForm : Form
         var cancel = new Button
         {
             Text = "Cancel",
-            DialogResult = DialogResult.Cancel,
             AutoSize = true,
             Padding = new Padding(14, 4, 14, 4),
             Margin = new Padding(8, 0, 0, 0),
@@ -154,34 +155,64 @@ internal sealed class SettingsForm : Form
         {
             _settings.RefreshSeconds = (int)Math.Round(_refresh.Value * 60m);
             _settings.ShowPercentage = _showPct.Checked;
+            _onSave(_settings);
+            Close();
         };
+        cancel.Click += (_, _) => Close();
 
         var buttons = new FlowLayoutPanel
         {
             FlowDirection = FlowDirection.RightToLeft,
-            Anchor = AnchorStyles.Right,
+            WrapContents = false,   // keep Save and Cancel on one line, never wrap one out of view
+            Anchor = AnchorStyles.Right | AnchorStyles.Bottom,
             AutoSize = true,
-            Margin = new Padding(0, 22, 0, 0),
+            Margin = Padding.Empty,
         };
         buttons.Controls.Add(ok);     // RightToLeft → Save sits rightmost
         buttons.Controls.Add(cancel);
 
-        // Top-to-bottom stack: Refresh section, Display section, buttons. The panel auto-sizes
-        // to its widest row and the form grows to match.
+        // Footer: product version on the left, action buttons on the right, both pinned to the
+        // bottom so they stay together no matter how tall the (resizable/maximized) window is.
+        var version = new Label
+        {
+            Text = $"Version {Updater.CurrentVersion}",
+            AutoSize = true,
+            ForeColor = subtle,
+            Anchor = AnchorStyles.Left | AnchorStyles.Bottom,
+            Margin = new Padding(0, 0, 0, 6),
+        };
+        var footer = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 1,
+            Margin = new Padding(0, 12, 0, 0),
+        };
+        footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+        footer.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        footer.Controls.Add(version, 0, 0);
+        footer.Controls.Add(buttons, 1, 0);
+
+        // Top-to-bottom stack: Refresh section, Display section, then a spacer that pushes the
+        // footer (version + buttons) to the bottom of the resizable window.
         var layout = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            AutoSize = true,
-            AutoSizeMode = AutoSizeMode.GrowAndShrink,
             ColumnCount = 1,
             RowCount = 6,
         };
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // heading
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // caption
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // fieldRow
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // displayHeading
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // _showPct
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100f)); // footer (anchored bottom)
         layout.Controls.Add(heading, 0, 0);
         layout.Controls.Add(caption, 0, 1);
         layout.Controls.Add(fieldRow, 0, 2);
         layout.Controls.Add(displayHeading, 0, 3);
         layout.Controls.Add(_showPct, 0, 4);
-        layout.Controls.Add(buttons, 0, 5);
+        layout.Controls.Add(footer, 0, 5);
         Controls.Add(layout);
 
         AcceptButton = ok;

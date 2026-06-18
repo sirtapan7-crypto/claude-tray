@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Code Tray — Claude usage in your Windows tray</title>
+<meta name="description" content="A native Windows tray monitor for your Claude Code usage. Crisp DPI-aware icon, burn-rate projection, and a privacy-first 24h usage breakdown — zero config.">
+
+<!-- Open Graph / social -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Claude Code Tray">
+<meta property="og:description" content="Rate-limit %, burn-rate projection, and a 24h usage breakdown — always in your Windows tray.">
+<meta property="og:image" content="social-preview.png">
+<meta property="og:url" content="https://alegauss.github.io/claude-tray/">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" type="image/png" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --clay:#D97757;
+    --clay-bright:#E89070;
+    --clay-deep:#5a3526;
+    --bg:#171008;
+    --bg-2:#1f160e;
+    --panel:#241a12;
+    --panel-2:#2c2017;
+    --line:#3a2c20;
+    --text:#f4ece4;
+    --muted:#b6a596;
+    --muted-2:#8a7868;
+    --blue:#4a90e2;
+    --red:#e5484d;
+    --radius:18px;
+    --maxw:1120px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:'Inter',system-ui,-apple-system,sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  a{color:inherit;text-decoration:none}
+  code,kbd{font-family:'JetBrains Mono',monospace}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+  .accent{color:var(--clay)}
+
+  /* ambient background glow */
+  body::before{
+    content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+    background:
+      radial-gradient(900px 500px at 80% -5%, rgba(217,119,87,.22), transparent 60%),
+      radial-gradient(700px 600px at -10% 20%, rgba(217,119,87,.10), transparent 55%),
+      linear-gradient(180deg,var(--bg),var(--bg-2));
+  }
+
+  /* ---------- nav ---------- */
+  nav{
+    position:sticky;top:0;z-index:50;
+    -webkit-backdrop-filter:blur(12px);
+    backdrop-filter:blur(12px);
+    background:rgba(23,16,8,.72);
+    border-bottom:1px solid var(--line);
+  }
+  nav .wrap{display:flex;align-items:center;justify-content:space-between;height:64px}
+  .brand{display:flex;align-items:center;gap:12px;font-weight:800;font-size:1.05rem;letter-spacing:-.02em}
+  .brand img{width:32px;height:32px;border-radius:8px}
+  .nav-links{display:flex;align-items:center;gap:28px}
+  .nav-links a{color:var(--muted);font-weight:500;font-size:.95rem;transition:color .2s}
+  .nav-links a:hover{color:var(--text)}
+  .btn{
+    display:inline-flex;align-items:center;gap:9px;
+    padding:11px 20px;border-radius:11px;font-weight:600;font-size:.95rem;
+    transition:transform .15s ease, box-shadow .2s ease, background .2s;
+    white-space:nowrap;
+  }
+  .btn-primary{
+    background:linear-gradient(135deg,var(--clay),#c2613f);
+    color:#fff;box-shadow:0 8px 24px -8px rgba(217,119,87,.7);
+  }
+  .btn-primary:hover{transform:translateY(-2px);box-shadow:0 14px 32px -10px rgba(217,119,87,.85)}
+  .btn-ghost{background:var(--panel);color:var(--text);border:1px solid var(--line)}
+  .btn-ghost:hover{background:var(--panel-2);transform:translateY(-2px)}
+  @media(max-width:760px){.nav-links a:not(.btn){display:none}}
+
+  /* ---------- hero ---------- */
+  .hero{padding:84px 0 60px;text-align:center;position:relative}
+  .badge{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:7px 15px;border-radius:999px;
+    background:rgba(217,119,87,.12);border:1px solid rgba(217,119,87,.35);
+    color:var(--clay-bright);font-size:.82rem;font-weight:600;letter-spacing:.01em;
+    margin-bottom:28px;
+  }
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--clay-bright);box-shadow:0 0 10px var(--clay);animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  .hero h1{
+    font-size:clamp(2.6rem,6.5vw,4.6rem);line-height:1.04;font-weight:900;letter-spacing:-.035em;
+    margin-bottom:22px;
+  }
+  .hero h1 .grad{
+    background:linear-gradient(120deg,var(--clay-bright),var(--clay) 55%,#c2613f);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .hero p.sub{
+    font-size:clamp(1.05rem,2.2vw,1.32rem);color:var(--muted);
+    max-width:680px;margin:0 auto 36px;line-height:1.55;
+  }
+  .hero-cta{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-bottom:18px}
+  .hero-meta{display:flex;gap:22px;justify-content:center;flex-wrap:wrap;color:var(--muted-2);font-size:.85rem;margin-top:8px}
+  .hero-meta span{display:inline-flex;align-items:center;gap:7px}
+
+  .pills{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:34px}
+  .pill{
+    padding:8px 14px;border-radius:10px;background:var(--panel);border:1px solid var(--line);
+    font-size:.82rem;color:var(--muted);font-weight:500;
+  }
+  .pill b{color:var(--text)}
+
+  /* floating hero icon */
+  .hero-icon{width:96px;height:96px;border-radius:22px;margin:0 auto 30px;display:block;
+    box-shadow:0 24px 60px -16px rgba(217,119,87,.6);animation:float 5s ease-in-out infinite}
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+
+  /* ---------- section ---------- */
+  section{padding:72px 0;position:relative}
+  .sec-head{text-align:center;max-width:640px;margin:0 auto 52px}
+  .eyebrow{color:var(--clay);font-weight:700;font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;margin-bottom:14px}
+  .sec-head h2{font-size:clamp(1.9rem,4vw,2.7rem);font-weight:800;letter-spacing:-.025em;line-height:1.12;margin-bottom:16px}
+  .sec-head p{color:var(--muted);font-size:1.05rem}
+
+  /* ---------- feature grid ---------- */
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  @media(max-width:900px){.grid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:600px){.grid{grid-template-columns:1fr}}
+  .card{
+    background:linear-gradient(180deg,var(--panel),var(--bg-2));
+    border:1px solid var(--line);border-radius:var(--radius);
+    padding:26px;transition:transform .2s ease,border-color .2s,box-shadow .25s;
+    position:relative;overflow:hidden;
+  }
+  .card:hover{transform:translateY(-4px);border-color:rgba(217,119,87,.5);box-shadow:0 18px 40px -22px rgba(217,119,87,.6)}
+  .card .ico{
+    width:46px;height:46px;border-radius:12px;display:grid;place-items:center;
+    background:rgba(217,119,87,.14);border:1px solid rgba(217,119,87,.3);
+    font-size:1.4rem;margin-bottom:18px;
+  }
+  .card h3{font-size:1.12rem;font-weight:700;margin-bottom:9px;letter-spacing:-.01em}
+  .card p{color:var(--muted);font-size:.93rem;line-height:1.6}
+  .card.feat{grid-column:span 1}
+
+  /* ---------- split / showcase ---------- */
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center}
+  @media(max-width:840px){.split{grid-template-columns:1fr;gap:32px}}
+  .split.rev .split-txt{order:2}
+  @media(max-width:840px){.split.rev .split-txt{order:0}}
+  .split-txt h2{font-size:clamp(1.7rem,3.5vw,2.3rem);font-weight:800;letter-spacing:-.02em;margin-bottom:18px;line-height:1.15}
+  .split-txt p{color:var(--muted);font-size:1.02rem;margin-bottom:18px}
+  .feat-list{list-style:none;display:flex;flex-direction:column;gap:14px}
+  .feat-list li{display:flex;gap:13px;align-items:flex-start;font-size:.97rem}
+  .feat-list .chk{
+    flex:0 0 auto;width:22px;height:22px;border-radius:6px;display:grid;place-items:center;
+    background:rgba(217,119,87,.16);color:var(--clay-bright);font-size:.75rem;font-weight:800;margin-top:2px;
+  }
+  .feat-list b{color:var(--text)}
+  .feat-list span{color:var(--muted)}
+  .shot{
+    width:100%;border-radius:16px;border:1px solid var(--line);
+    box-shadow:0 30px 70px -30px rgba(0,0,0,.8);
+    background:var(--panel);
+  }
+  .shot-frame{
+    border-radius:18px;padding:14px;
+    background:linear-gradient(160deg,rgba(217,119,87,.12),transparent 60%),var(--bg-2);
+    border:1px solid var(--line);
+  }
+
+  /* ---------- projection colors ---------- */
+  .proj{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:8px}
+  @media(max-width:600px){.proj{grid-template-columns:1fr}}
+  .proj .state{border-radius:14px;padding:22px;border:1px solid var(--line);background:var(--panel)}
+  .proj .state.ok{border-color:rgba(74,144,226,.4)}
+  .proj .state.bad{border-color:rgba(229,72,77,.45)}
+  .proj .tag{display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:.9rem;margin-bottom:8px}
+  .proj .ok .tag{color:var(--blue)}
+  .proj .bad .tag{color:var(--red)}
+  .proj .swatch{width:12px;height:12px;border-radius:3px}
+  .proj .ok .swatch{background:var(--blue);box-shadow:0 0 10px rgba(74,144,226,.6)}
+  .proj .bad .swatch{background:var(--red);box-shadow:0 0 10px rgba(229,72,77,.6)}
+  .proj p{color:var(--muted);font-size:.92rem}
+
+  /* ---------- privacy banner ---------- */
+  .privacy{
+    background:linear-gradient(135deg,rgba(217,119,87,.1),var(--panel));
+    border:1px solid rgba(217,119,87,.3);border-radius:var(--radius);
+    padding:40px;text-align:center;
+  }
+  .privacy h2{font-size:clamp(1.5rem,3vw,2rem);font-weight:800;margin-bottom:14px;letter-spacing:-.02em}
+  .privacy p{color:var(--muted);max-width:640px;margin:0 auto;font-size:1rem}
+  .privacy .lock{font-size:2.4rem;margin-bottom:14px}
+
+  /* ---------- install ---------- */
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:32px}
+  @media(max-width:760px){.steps{grid-template-columns:1fr}}
+  .step{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:24px;position:relative}
+  .step .n{
+    width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-weight:800;
+    background:linear-gradient(135deg,var(--clay),#c2613f);color:#fff;margin-bottom:14px;font-size:.95rem;
+  }
+  .step h4{font-size:1.05rem;margin-bottom:7px;font-weight:700}
+  .step p{color:var(--muted);font-size:.9rem}
+  .codeblock{
+    background:#120c06;border:1px solid var(--line);border-radius:12px;
+    padding:18px 20px;font-family:'JetBrains Mono',monospace;font-size:.88rem;color:#d9c9b8;
+    overflow-x:auto;line-height:1.8;
+  }
+  .codeblock .c{color:var(--muted-2)}
+  .codeblock .g{color:var(--clay-bright)}
+
+  /* ---------- footer ---------- */
+  footer{border-top:1px solid var(--line);padding:46px 0 38px;margin-top:30px}
+  .foot-grid{display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap}
+  .foot-brand{display:flex;align-items:center;gap:12px;font-weight:800}
+  .foot-brand img{width:30px;height:30px;border-radius:8px}
+  .foot-links{display:flex;gap:24px;flex-wrap:wrap}
+  .foot-links a{color:var(--muted);font-size:.9rem;transition:color .2s}
+  .foot-links a:hover{color:var(--clay)}
+  .disclaimer{color:var(--muted-2);font-size:.8rem;margin-top:22px;text-align:center;max-width:760px;margin-left:auto;margin-right:auto;line-height:1.6}
+
+  /* reveal on scroll */
+  .reveal{opacity:0;transform:translateY(24px);transition:opacity .6s ease,transform .6s ease}
+  .reveal.in{opacity:1;transform:none}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="logo.png" alt="">Claude Code Tray</a>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#projection">Projection</a>
+      <a href="#insights">Insights</a>
+      <a href="#install">Install</a>
+      <a class="btn btn-primary" href="https://github.com/alegauss/claude-tray/releases/latest">⬇ Download</a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<header class="hero" id="top">
+  <div class="wrap">
+    <img class="hero-icon" src="logo.png" alt="Claude Code Tray logo">
+    <div class="badge"><span class="dot"></span> Unofficial · Open source · Windows 10 / 11</div>
+    <h1>Your Claude Code usage,<br><span class="grad">always in the tray.</span></h1>
+    <p class="sub">
+      A native Windows tray monitor that shows your rate-limit usage as a crisp, DPI-aware
+      icon — with burn-rate projection and a privacy-first 24h usage breakdown. Zero config:
+      it reuses Claude Code's own login.
+    </p>
+    <div class="hero-cta">
+      <a class="btn btn-primary" href="https://github.com/alegauss/claude-tray/releases/latest">⬇ Download for Windows</a>
+      <a class="btn btn-ghost" href="https://github.com/alegauss/claude-tray">★ View on GitHub</a>
+    </div>
+    <div class="hero-meta">
+      <span>🪶 Self-contained .exe — no .NET to install</span>
+      <span>🔒 No API key, no setup</span>
+      <span>🔄 Auto-updates</span>
+    </div>
+    <div class="pills">
+      <span class="pill"><b>.NET 10</b> · WinForms + GDI+</span>
+      <span class="pill">Vector icon · <b>PerMonitorV2 DPI</b></span>
+      <span class="pill"><b>winget</b> & installer</span>
+      <span class="pill">Apache 2.0</span>
+    </div>
+  </div>
+</header>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="eyebrow">Why you'll love it</div>
+      <h2>Everything you need, nothing you don't</h2>
+      <p>Built for clarity on real displays — it lives entirely in the tray and tells you exactly where you stand.</p>
+    </div>
+    <div class="grid">
+      <div class="card feat reveal">
+        <div class="ico">🎯</div>
+        <h3>Crisp at any DPI</h3>
+        <p>The percentage is drawn as a <b>vector</b> at the exact size the tray requests — no downscaled bitmaps. Stays razor-sharp on 125–200% displays.</p>
+      </div>
+      <div class="card feat reveal">
+        <div class="ico">📊</div>
+        <h3>Task-Manager-style fill</h3>
+        <p>A vertical bar rises from the bottom proportional to your usage, with a 3D bevel for relief. Blue when you're on track, red when you're not.</p>
+      </div>
+      <div class="card feat reveal">
+        <div class="ico">📈</div>
+        <h3>Burn-rate projection</h3>
+        <p>Tracks how fast usage climbs and projects when you'd hit 100% — warning you <b>before</b> the window resets, not after.</p>
+      </div>
+      <div class="card feat reveal">
+        <div class="ico">🔍</div>
+        <h3>24h usage insights</h3>
+        <p>A local, cost-weighted breakdown of your last 24h — by model, subagents, and large-context requests. Computed offline from your transcripts.</p>
+      </div>
+      <div class="card feat reveal">
+        <div class="ico">⚡</div>
+        <h3>Zero configuration</h3>
+        <p>No API key to paste, no env var to set. It reuses the OAuth token Claude Code already stores when you log in.</p>
+      </div>
+      <div class="card feat reveal">
+        <div class="ico">🔄</div>
+        <h3>Self-updating</h3>
+        <p>Checks GitHub Releases and offers an in-app one-click update. Per-user install, no admin rights needed.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SHOWCASE: tooltip -->
+<section style="padding-top:24px">
+  <div class="wrap">
+    <div class="split reveal">
+      <div class="split-txt">
+        <div class="eyebrow">At a glance</div>
+        <h2>One hover tells the whole story</h2>
+        <p>The tooltip packs everything into a single read — no dashboards, no browser tabs.</p>
+        <ul class="feat-list">
+          <li><span class="chk">✓</span><span><b>5h session</b> & <b>7d week</b> usage side by side</span></li>
+          <li><span class="chk">✓</span><span><b>Extra usage</b> and a live countdown to the next reset</span></li>
+          <li><span class="chk">✓</span><span>The <b>projected time to 100%</b> at your current pace</span></li>
+          <li><span class="chk">✓</span><span>Connection status — amber on token expiry, logo while connecting</span></li>
+        </ul>
+      </div>
+      <div class="shot-frame">
+        <img class="shot" src="tooltip.png" alt="Tray icon with usage tooltip">
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PROJECTION -->
+<section id="projection">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="eyebrow">Observability</div>
+      <h2>It doesn't just show a number — it predicts</h2>
+      <p>Using a short rolling history and least-squares regression on your utilization, the icon's color tells you what's coming.</p>
+    </div>
+    <div class="proj reveal">
+      <div class="state ok">
+        <div class="tag"><span class="swatch"></span> On track</div>
+        <p>At your current pace, usage stays under 100% until the window resets. The fill bar stays its normal <b style="color:var(--blue)">blue</b> — no action needed.</p>
+      </div>
+      <div class="state bad">
+        <div class="tag"><span class="swatch"></span> Danger</div>
+        <p>At your current pace, usage will hit 100% <b>before</b> the reset. The fill bar turns <b style="color:var(--red)">vivid red</b> so you can ease off in time.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- INSIGHTS -->
+<section id="insights">
+  <div class="wrap">
+    <div class="split rev reveal">
+      <div class="shot-frame">
+        <img class="shot" src="usage.png" alt="Usage insights submenu">
+      </div>
+      <div class="split-txt">
+        <div class="eyebrow">Local · Private</div>
+        <h2>Know where your tokens actually go</h2>
+        <p>The <b>Usage insights (24h)</b> menu is computed entirely on your machine from Claude Code's session transcripts — weighted by per-model price so the numbers reflect real cost, not request count.</p>
+        <ul class="feat-list">
+          <li><span class="chk">✓</span><span><b>Last 24h</b> — request and session counts</span></li>
+          <li><span class="chk">✓</span><span><b>From subagents</b> — share of usage from sidechain requests</span></li>
+          <li><span class="chk">✓</span><span><b>&gt;150k context</b> — share from large-context prompts</span></li>
+          <li><span class="chk">✓</span><span><b>By model</b> — top models (Opus / Sonnet / Haiku / Fable) by share</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRIVACY -->
+<section style="padding-top:20px">
+  <div class="wrap reveal">
+    <div class="privacy">
+      <div class="lock">🔒</div>
+      <h2>Privacy by design</h2>
+      <p>
+        Only token counts, model ids, and flags are ever read — <b>never your message content</b>.
+        The insights scan is bounded to files touched in the last 24h and runs in the background.
+        The rate-limit reading is a single 1-token API call every 5 minutes. Nothing leaves your machine
+        beyond that, and there's nothing to log into.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- INSTALL -->
+<section id="install">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="eyebrow">Get started</div>
+      <h2>Up and running in two minutes</h2>
+      <p>Already using Claude Code? Then you're already set up.</p>
+    </div>
+    <div class="steps reveal">
+      <div class="step">
+        <div class="n">1</div>
+        <h4>Have Claude Code</h4>
+        <p>Install it and run <code>claude</code> once so it stores your login token.</p>
+      </div>
+      <div class="step">
+        <div class="n">2</div>
+        <h4>Download &amp; install</h4>
+        <p>Grab <code>ClaudeTray-Setup.exe</code> from Releases, or install via winget. Per-user, no admin.</p>
+      </div>
+      <div class="step">
+        <div class="n">3</div>
+        <h4>It just works</h4>
+        <p>The icon appears in your tray and starts reporting. Right-click for options.</p>
+      </div>
+    </div>
+
+    <div class="codeblock reveal">
+<span class="c"># Install with winget</span>
+winget install <span class="g">alegauss.ClaudeCodeTray</span>
+
+<span class="c"># …or build from source (.NET 10 SDK)</span>
+dotnet run -c Release            <span class="c"># build and run</span>
+dotnet publish -c Release        <span class="c"># single self-contained .exe</span>
+    </div>
+
+    <div style="text-align:center;margin-top:34px">
+      <a class="btn btn-primary" href="https://github.com/alegauss/claude-tray/releases/latest">⬇ Download the latest release</a>
+    </div>
+  </div>
+</section>
+
+<!-- MENU showcase small -->
+<section style="padding-top:10px">
+  <div class="wrap">
+    <div class="split reveal">
+      <div class="split-txt">
+        <div class="eyebrow">Right-click menu</div>
+        <h2>Control, without leaving the tray</h2>
+        <ul class="feat-list">
+          <li><span class="chk">✓</span><span><b>Show on icon</b> — switch between Session 5h / Week 7d / Extra</span></li>
+          <li><span class="chk">✓</span><span><b>Refresh now</b> — immediate API read</span></li>
+          <li><span class="chk">✓</span><span><b>Start with Windows</b> — one-click autostart toggle (no admin)</span></li>
+          <li><span class="chk">✓</span><span><b>Update to vX.Y.Z</b> — appears only when a newer release exists</span></li>
+        </ul>
+      </div>
+      <div class="shot-frame">
+        <img class="shot" src="menu.png" alt="Right-click menu">
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <a class="foot-brand" href="#top"><img src="logo.png" alt="">Claude Code Tray</a>
+      <div class="foot-links">
+        <a href="https://github.com/alegauss/claude-tray">GitHub</a>
+        <a href="https://github.com/alegauss/claude-tray/releases/latest">Releases</a>
+        <a href="https://github.com/alegauss/claude-tray/blob/main/README.md">Docs</a>
+        <a href="https://github.com/alegauss/claude-tray/blob/main/LICENSE">License</a>
+      </div>
+    </div>
+    <p class="disclaimer">
+      Unofficial / community project — not affiliated with, endorsed by, or sponsored by Anthropic.
+      “Claude” and “Claude Code” are trademarks of Anthropic; this tool merely reads the usage data
+      Claude Code already exposes on your own machine. Apache License 2.0 © 2026 Alexandre Oliveira.
+    </p>
+  </div>
+</footer>
+
+<script>
+  // reveal-on-scroll
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }});
+  },{threshold:.12});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+</body>
+</html>

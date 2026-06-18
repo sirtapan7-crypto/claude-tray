@@ -260,15 +260,33 @@ internal sealed class TrayContext : ApplicationContext
         Render();
     }
 
-    // Open the settings dialog; on Save, persist and apply the new values immediately.
+    // The settings window is shown non-modally; keep a reference so we reuse the open one
+    // instead of stacking duplicates.
+    private SettingsForm? _settingsForm;
+
+    // Open the settings window (non-modal); on Save it calls ApplySettings to persist and apply.
     private void OpenSettings()
     {
-        using var dlg = new SettingsForm(_settings);
-        if (dlg.ShowDialog() != DialogResult.OK) return;
+        if (_settingsForm is { IsDisposed: false })
+        {
+            if (_settingsForm.WindowState == FormWindowState.Minimized)
+                _settingsForm.WindowState = FormWindowState.Normal;
+            _settingsForm.Activate();
+            return;
+        }
 
-        bool intervalChanged = dlg.Result.RefreshSeconds != _settings.RefreshSeconds;
-        _settings.RefreshSeconds = dlg.Result.RefreshSeconds;
-        _settings.ShowPercentage = dlg.Result.ShowPercentage;
+        _settingsForm = new SettingsForm(_settings, ApplySettings);
+        _settingsForm.FormClosed += (_, _) => _settingsForm = null;
+        _settingsForm.Show();
+        _settingsForm.Activate();
+    }
+
+    // Persist the edited settings and apply the new values immediately.
+    private void ApplySettings(Settings updated)
+    {
+        bool intervalChanged = updated.RefreshSeconds != _settings.RefreshSeconds;
+        _settings.RefreshSeconds = updated.RefreshSeconds;
+        _settings.ShowPercentage = updated.ShowPercentage;
 
         try { _settings.Save(); }
         catch (Exception ex)
