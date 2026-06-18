@@ -138,8 +138,8 @@ It can be copied anywhere and runs without .NET installed.
 
 Three ways, from simplest to most complete:
 
-1. **From the app menu** (recommended): right-click the icon → **Start with Windows**.
-   Writes/removes a key under `HKCU\…\Run` pointing to the current `.exe`. No admin.
+1. **From Settings** (recommended): right-click the icon → **Settings…** → **Startup** →
+   **Start with Windows**. Writes/removes a key under `HKCU\…\Run` pointing to the current `.exe`. No admin.
 2. **Installer** (see below): check "Start with Windows" during installation.
 3. **Manual**: `Win + R` → `shell:startup` → create a shortcut to `ClaudeTray.exe`.
 
@@ -180,7 +180,7 @@ installs pick it up automatically (see [Updates](#updates)).
   OAuth token; the recovery path when the icon shows a *not authenticated* (HTTP 401) state
 - **Update to vX.Y.Z** — appears only when a newer GitHub release exists; click to download and
   install it (see below)
-- **Start with Windows** — toggle the `HKCU\…\Run` autostart entry
+- **Settings…** — refresh interval, display options, and **Start with Windows** (autostart)
 - **Quit**
 
 ## Updates

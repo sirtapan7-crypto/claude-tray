@@ -3,8 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:ClassModifier="internal"
         Title="Settings"
-        Width="760" Height="520"
-        MinWidth="640" MinHeight="460"
+        Width="760" Height="600"
+        MinWidth="640" MinHeight="560"
         WindowStartupLocation="CenterScreen"
         ThemeMode="System"
         FontFamily="Segoe UI Variable Text, Segoe UI">
@@ -52,6 +52,8 @@
                 <RowDefinition Height="Auto" /><!-- Interval card -->
                 <RowDefinition Height="Auto" /><!-- Display header -->
                 <RowDefinition Height="Auto" /><!-- Display card -->
+                <RowDefinition Height="Auto" /><!-- Startup header -->
+                <RowDefinition Height="Auto" /><!-- Startup card -->
                 <RowDefinition Height="*" />   <!-- spacer -->
                 <RowDefinition Height="Auto" /><!-- footer -->
             </Grid.RowDefinitions>
@@ -109,8 +111,22 @@
                           Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
             </Border>
 
+            <TextBlock Grid.Row="5" Text="Startup"
+                       FontSize="16" FontWeight="SemiBold" Margin="0,22,0,12"
+                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+
+            <!-- Startup card -->
+            <Border Grid.Row="6" CornerRadius="8" Padding="16,12"
+                    Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                    BorderThickness="1"
+                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
+                <CheckBox x:Name="StartupCheck"
+                          Content="Start with Windows"
+                          Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+            </Border>
+
             <!-- ===== Footer ===== -->
-            <Grid Grid.Row="6" Margin="0,16,0,0">
+            <Grid Grid.Row="8" Margin="0,16,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />

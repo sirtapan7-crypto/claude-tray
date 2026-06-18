@@ -37,6 +37,11 @@ internal static class IconRenderer
     private static readonly Color BevelLight = Color.FromArgb(150, 255, 255, 255);
     private static readonly Color BevelDark  = Color.FromArgb(150, 0, 0, 0);
 
+    // "Needs auth" badge shown on a 401 (token expired): a medium orange play triangle — it invites
+    // the user to start/resume (re-authenticate), which a stop square would signal the opposite of.
+    private static readonly Color PlayOrange = Color.FromArgb(242, 140, 35);
+    private static readonly Color PlayEdge   = Color.FromArgb(150, 70, 30, 0);
+
     public enum State { Ok, Error, Connecting }
 
     /// <summary>
@@ -112,6 +117,48 @@ internal static class IconRenderer
             g.DrawPath(pen, text);
         using (var fill = new SolidBrush(Cream))
             g.FillPath(fill, text);
+
+        return bmp;
+    }
+
+    /// <summary>
+    /// Render the "needs auth" tray icon shown on a 401 (expired token): the usual gray slate tile,
+    /// with a medium orange play triangle centered on it — not filling the whole tile. Play (not a
+    /// stop square) because the user is meant to start/resume by re-authenticating. Once a poll
+    /// succeeds again the normal icon is drawn, so this badge simply disappears.
+    /// </summary>
+    public static Bitmap RenderNeedsAuth(int size)
+    {
+        var bmp = new Bitmap(size, size, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+        using var g = Graphics.FromImage(bmp);
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+        g.Clear(Color.Transparent);
+
+        // Gray slate base tile (same rounded, beveled shape as the normal icon).
+        float radius = size * 0.18f;
+        using var tile = RoundedRect(new RectangleF(0, 0, size - 1, size - 1), radius);
+        using (var brush = new SolidBrush(Dim))
+            g.FillPath(brush, tile);
+        DrawBevel(g, new RectangleF(0, 0, size - 1, size - 1), radius, Math.Max(1f, size * 0.09f));
+
+        // Medium centered orange play triangle (pointing right), nudged slightly right so it reads
+        // as optically centered. Sized ~50% of the tile so it's clear without covering it.
+        float side = size * 0.5f;
+        float off = (size - side) / 2f;
+        float nudge = size * 0.04f;
+        PointF[] tri =
+        {
+            new(off + nudge, off),
+            new(off + nudge, off + side),
+            new(off + side + nudge, off + side / 2f),
+        };
+        using var play = new GraphicsPath();
+        play.AddPolygon(tri);
+        using (var brush = new SolidBrush(PlayOrange))
+            g.FillPath(brush, play);
+        using (var pen = new Pen(PlayEdge, Math.Max(1f, size * 0.06f)) { LineJoin = LineJoin.Round })
+            g.DrawPath(pen, play);
 
         return bmp;
     }

@@ -39,6 +39,9 @@ internal partial class SettingsWindow : Window
         UpdateIntervalLabel();
 
         ShowPctCheck.IsChecked = _settings.ShowPercentage;
+        // "Start with Windows" is a registry entry (HKCU\…\Run), not part of the Settings model;
+        // read its live state here and apply it directly on Save.
+        StartupCheck.IsChecked = StartupManager.IsEnabled();
         VersionText.Text = $"Version {Updater.CurrentVersion}";
 
         try { Icon = System.Windows.Media.Imaging.BitmapFrame.Create(
@@ -94,6 +97,20 @@ internal partial class SettingsWindow : Window
     {
         _settings.RefreshSeconds = (int)Math.Round(IntervalSlider.Value * 60.0);
         _settings.ShowPercentage = ShowPctCheck.IsChecked == true;
+
+        // Apply the autostart registry entry directly (it lives outside the Settings model).
+        bool startup = StartupCheck.IsChecked == true;
+        try
+        {
+            if (StartupManager.IsEnabled() != startup)
+                StartupManager.SetEnabled(startup);
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show($"Could not change the startup setting:\n{ex.Message}",
+                "Claude Code Tray", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+
         _onSave(_settings);
         Close();
     }

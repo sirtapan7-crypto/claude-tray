@@ -103,6 +103,10 @@ internal static class Program
             foreach (var (pct, st, fl, verdict) in cases)
                 using (var bmp = IconRenderer.Render(pct, st, fl, size, verdict))
                     bmp.Save(Path.Combine(dir, $"icon_{(int)(pct * 100)}_{size}.png"));
+        // The 401 "needs auth" badge (gray tile + medium orange play triangle); 128 is for preview.
+        foreach (int size in new[] { 16, 20, 32, 128 })
+            using (var bmp = IconRenderer.RenderNeedsAuth(size))
+                bmp.Save(Path.Combine(dir, $"icon_needsauth_{size}.png"));
         Console.WriteLine("rendered to " + Path.GetFullPath(dir));
     }
 
@@ -239,22 +243,6 @@ internal sealed class TrayContext : ApplicationContext
         _updateItem = new ToolStripMenuItem("Update available") { Visible = false, Font = new Font(menu.Font, FontStyle.Bold) };
         _updateItem.Click += (_, _) => { if (!_updating) _ = ApplyUpdateAsync(); };
         menu.Items.Add(_updateItem);
-
-        var startup = new ToolStripMenuItem("Start with Windows") { Checked = StartupManager.IsEnabled() };
-        startup.Click += (_, _) =>
-        {
-            try
-            {
-                StartupManager.SetEnabled(!startup.Checked);
-                startup.Checked = StartupManager.IsEnabled();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Could not change startup setting:\n{ex.Message}",
-                    "Claude Code Tray", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            }
-        };
-        menu.Items.Add(startup);
 
         var settings = new ToolStripMenuItem("Settings…");
         settings.Click += (_, _) => OpenSettings();
@@ -455,10 +443,13 @@ internal sealed class TrayContext : ApplicationContext
 
         Projection verdict = CurrentProjection().verdict;
 
-        // While connecting (no data yet), show the app logo instead of a gray "0".
-        using Bitmap bmp = state == IconRenderer.State.Connecting
-            ? IconRenderer.RenderLogo(size)
-            : IconRenderer.Render(CurrentPct(), state, flash, size, verdict, _settings.ShowPercentage);
+        // On a 401 (expired token) show a gray tile with a medium orange play triangle (re-auth to
+        // resume); while connecting (no data yet) show the app logo instead of a gray "0"; otherwise
+        // the usage icon.
+        using Bitmap bmp =
+            _data is { Unauthorized: true } ? IconRenderer.RenderNeedsAuth(size) :
+            state == IconRenderer.State.Connecting ? IconRenderer.RenderLogo(size) :
+            IconRenderer.Render(CurrentPct(), state, flash, size, verdict, _settings.ShowPercentage);
         SetTrayIcon(bmp);
         _tray.Text = Truncate(BuildTooltip(), 127);
     }
