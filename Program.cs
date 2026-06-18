@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Microsoft.Win32;
 
@@ -227,6 +228,12 @@ internal sealed class TrayContext : ApplicationContext
         var refresh = new ToolStripMenuItem("Refresh now");
         refresh.Click += async (_, _) => await RefreshAsync();
         menu.Items.Add(refresh);
+
+        // Launches the Claude Code CLI so it can refresh the OAuth token in
+        // ~/.claude/.credentials.json — the recovery path when a poll hits HTTP 401.
+        var openClaude = new ToolStripMenuItem("Open Claude Code");
+        openClaude.Click += (_, _) => OpenClaudeCode();
+        menu.Items.Add(openClaude);
 
         // Hidden until a newer release is found; then shows "Update to vX.Y.Z".
         _updateItem = new ToolStripMenuItem("Update available") { Visible = false, Font = new Font(menu.Font, FontStyle.Bold) };
@@ -472,7 +479,10 @@ internal sealed class TrayContext : ApplicationContext
     private string BuildTooltip()
     {
         if (_data == null) return "Claude Code — connecting…";
-        if (_data.Error != null) return $"Claude Code — API error\n{_data.Error}";
+        if (_data.Error != null)
+            return _data.Unauthorized
+                ? "Claude Code — not authenticated\nOpen Claude Code to sign in again"
+                : $"Claude Code — API error\n{_data.Error}";
 
         long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         string r5 = _data.Reset5h > 0 ? FmtCountdown(_data.Reset5h - now) : "--";
@@ -519,6 +529,29 @@ internal sealed class TrayContext : ApplicationContext
     }
 
     private static string Truncate(string s, int max) => s.Length <= max ? s : s[..max];
+
+    // Open the Claude Code CLI in a terminal. Starting it makes Claude Code validate and refresh
+    // the OAuth token, which clears an expired-token (401) state for the next poll. `claude` is on
+    // PATH for anyone who uses Claude Code, so the shell resolves it regardless of install method.
+    private static void OpenClaudeCode()
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "cmd.exe",
+                Arguments = "/k claude",
+                UseShellExecute = true,
+            });
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                "Could not launch Claude Code automatically.\n" +
+                "Open a terminal and run \"claude\" to sign in, then choose \"Refresh now\".\n\n" + ex.Message,
+                "Claude Code Tray", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+    }
 
     private void ExitApp()
     {

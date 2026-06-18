@@ -17,6 +17,7 @@ internal sealed class UsageData
     public double ResetExtra;
     public string Status = "unknown";
     public string? Error;
+    public bool Unauthorized;   // true on HTTP 401 — token expired, needs Claude Code to re-auth
 
     public double Metric(string key) => key switch
     {
@@ -81,6 +82,7 @@ internal sealed class ApiClient
             // If the call itself failed (e.g. expired token) and no headers came back, surface it.
             if (!resp.IsSuccessStatusCode && d.Session5h == 0 && d.Week7d == 0)
                 d.Error = $"HTTP {(int)resp.StatusCode}";
+            d.Unauthorized = (int)resp.StatusCode == 401;
             return d;
         }
         catch (Exception e)
