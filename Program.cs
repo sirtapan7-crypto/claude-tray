@@ -67,6 +67,16 @@ internal static class Program
             return;
         }
 
+        // Dev/preview helper: open just the Settings window, standalone, so the UI can be launched
+        // and screenshotted deterministically without going through the tray menu.
+        if (args.Length >= 1 && args[0] == "--settings")
+        {
+            var previewApp = new System.Windows.Application();
+            var win = new SettingsWindow(Settings.Load(), _ => { });
+            previewApp.Run(win);
+            return;
+        }
+
         // Single instance: if the tray app is already running, just exit — don't add a second icon.
         _instanceMutex = new Mutex(initiallyOwned: true, @"Local\ClaudeTray.SingleInstance", out bool createdNew);
         if (!createdNew)
@@ -262,23 +272,34 @@ internal sealed class TrayContext : ApplicationContext
 
     // The settings window is shown non-modally; keep a reference so we reuse the open one
     // instead of stacking duplicates.
-    private SettingsForm? _settingsForm;
+    private SettingsWindow? _settingsWindow;
+
+    // A WPF Application must exist for the Fluent theme and pack-URI resources to resolve. We host
+    // a single instance for the process lifetime but never call Run() on it — the WinForms message
+    // loop (Application.Run(TrayContext)) already pumps messages for both UI stacks on this thread.
+    private static System.Windows.Application? _wpfApp;
 
     // Open the settings window (non-modal); on Save it calls ApplySettings to persist and apply.
     private void OpenSettings()
     {
-        if (_settingsForm is { IsDisposed: false })
+        if (_settingsWindow is not null)
         {
-            if (_settingsForm.WindowState == FormWindowState.Minimized)
-                _settingsForm.WindowState = FormWindowState.Normal;
-            _settingsForm.Activate();
+            if (_settingsWindow.WindowState == System.Windows.WindowState.Minimized)
+                _settingsWindow.WindowState = System.Windows.WindowState.Normal;
+            _settingsWindow.Activate();
             return;
         }
 
-        _settingsForm = new SettingsForm(_settings, ApplySettings);
-        _settingsForm.FormClosed += (_, _) => _settingsForm = null;
-        _settingsForm.Show();
-        _settingsForm.Activate();
+        if (_wpfApp is null && System.Windows.Application.Current is null)
+            _wpfApp = new System.Windows.Application
+            {
+                ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown,
+            };
+
+        _settingsWindow = new SettingsWindow(_settings, ApplySettings);
+        _settingsWindow.Closed += (_, _) => _settingsWindow = null;
+        _settingsWindow.Show();
+        _settingsWindow.Activate();
     }
 
     // Persist the edited settings and apply the new values immediately.

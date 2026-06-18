@@ -277,7 +277,7 @@
     <div class="pills">
       <span class="pill"><b>.NET 10</b> · WinForms + GDI+</span>
       <span class="pill">Vector icon · <b>PerMonitorV2 DPI</b></span>
-      <span class="pill"><b>winget</b> & installer</span>
+      <span class="pill">Inno Setup <b>installer</b></span>
       <span class="pill">Apache 2.0</span>
     </div>
   </div>
@@ -424,7 +424,7 @@
       <div class="step">
         <div class="n">2</div>
         <h4>Download &amp; install</h4>
-        <p>Grab <code>ClaudeTray-Setup.exe</code> from Releases, or install via winget. Per-user, no admin.</p>
+        <p>Grab <code>ClaudeTray-Setup.exe</code> from Releases and run it. Per-user, no admin.</p>
       </div>
       <div class="step">
         <div class="n">3</div>
@@ -434,10 +434,7 @@
     </div>
 
     <div class="codeblock reveal">
-<span class="c"># Install with winget</span>
-winget install <span class="g">alegauss.ClaudeCodeTray</span>
-
-<span class="c"># …or build from source (.NET 10 SDK)</span>
+<span class="c"># Build from source (.NET 10 SDK)</span>
 dotnet run -c Release            <span class="c"># build and run</span>
 dotnet publish -c Release        <span class="c"># single self-contained .exe</span>
     </div>

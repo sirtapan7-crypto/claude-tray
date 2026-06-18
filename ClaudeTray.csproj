@@ -4,6 +4,14 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
+    <!-- WPF is enabled for the windowed UI (Settings and future windows): XAML is declarative and
+         predictable, and the built-in .NET Fluent theme gives a Windows 11 look with ZERO extra
+         dependencies, so the single self-contained .exe and installer story is unaffected. The tray
+         icon itself stays WinForms NotifyIcon + GDI+. -->
+    <UseWPF>true</UseWPF>
+    <!-- WPF0001: ThemeMode (the built-in Fluent theme switch) is marked [Experimental] in the SDK
+         but is the supported way to opt into Fluent; suppress the experimental diagnostic. -->
+    <NoWarn>$(NoWarn);WPF0001</NoWarn>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationManifest>app.manifest</ApplicationManifest>
@@ -22,5 +30,11 @@
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
   </PropertyGroup>
+
+  <!-- Enabling UseWPF alongside UseWindowsForms drops System.IO from the SDK's implicit global
+       usings; re-add it so File/Path/Directory/streams resolve without per-file usings. -->
+  <ItemGroup>
+    <Using Include="System.IO" />
+  </ItemGroup>
 
 </Project>
