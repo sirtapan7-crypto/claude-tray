@@ -51,40 +51,73 @@ internal sealed class BurnTracker
     /// <summary>
     /// Project the named metric: verdict, seconds until usage would hit 100% at the current
     /// pace, and the burn rate as a fraction of the limit per hour (for display).
+    ///
+    /// When <paramref name="windowSeconds"/> &gt; 0 the verdict is decided by the "pace line"
+    /// instead of the regression: utilization is compared against the linear ideal consumption
+    /// since the window started (elapsed = window − timeToReset). This is robust to short
+    /// bursts because it averages over the whole elapsed window rather than the last ~2h. The
+    /// ETA / burn rate are still derived from the regression for display.
     /// </summary>
     public (Projection verdict, double exhaustSeconds, double burnPerHour) Project(
-        string key, double util, double reset, double now)
+        string key, double util, double reset, double now, double windowSeconds = 0)
     {
-        if (!_series.TryGetValue(key, out Series? s) || s.Samples.Count < 2)
-            return (Projection.Unknown, 0, 0);
+        // Regression-based burn rate and ETA (drives the verdict unless a pace-line window
+        // is supplied below).
+        Projection verdict = Projection.Unknown;
+        double exhaust = 0, burnPerHour = 0;
 
-        double span = s.Samples[^1].t - s.Samples[0].t;
-        if (span < MinSpanSeconds)
-            return (Projection.Unknown, 0, 0);
-
-        // Least-squares slope (utilization per second), x re-based to the first sample.
-        double n = s.Samples.Count, t0 = s.Samples[0].t;
-        double sx = 0, sy = 0, sxx = 0, sxy = 0;
-        foreach ((double t, double u) in s.Samples)
+        if (_series.TryGetValue(key, out Series? s) && s.Samples.Count >= 2 &&
+            s.Samples[^1].t - s.Samples[0].t >= MinSpanSeconds)
         {
-            double x = t - t0;
-            sx += x; sy += u; sxx += x * x; sxy += x * u;
+            // Least-squares slope (utilization per second), x re-based to the first sample.
+            double n = s.Samples.Count, t0 = s.Samples[0].t;
+            double sx = 0, sy = 0, sxx = 0, sxy = 0;
+            foreach ((double t, double u) in s.Samples)
+            {
+                double x = t - t0;
+                sx += x; sy += u; sxx += x * x; sxy += x * u;
+            }
+            double denom = n * sxx - sx * sx;
+            if (denom > 0)
+            {
+                double burnPerSec = (n * sxy - sx * sy) / denom;
+                if (burnPerSec <= 1e-9)
+                {
+                    // Flat or declining usage: nothing will be exhausted on its own.
+                    verdict = Projection.Ok;
+                    exhaust = double.PositiveInfinity;
+                }
+                else
+                {
+                    double remaining = Math.Max(0.0, 1.0 - util);
+                    exhaust = remaining / burnPerSec;          // seconds until 100%
+                    double untilReset = reset > 0 ? reset - now : double.PositiveInfinity;
+                    verdict = exhaust < untilReset ? Projection.Danger : Projection.Ok;
+                    burnPerHour = burnPerSec * 3600;
+                }
+            }
         }
-        double denom = n * sxx - sx * sx;
-        if (denom <= 0)
-            return (Projection.Unknown, 0, 0);
 
-        double burnPerSec = (n * sxy - sx * sy) / denom;
+        // Pace-line verdict for windows of known length: danger if we are already above the
+        // share of the budget that even, constant consumption would have used by now. The ETA
+        // is the rule-of-three projection from the average pace since the window started:
+        // util reached in `elapsed` → 100% reached in elapsed × 100/util, so the time left to
+        // hit 100% is elapsed × (1 − util) / util.
+        if (windowSeconds > 0 && reset > 0)
+        {
+            double untilReset = reset - now;
+            double elapsed = Math.Max(0.0, windowSeconds - untilReset);
+            double expected = Math.Clamp(elapsed / windowSeconds, 0.0, 1.0);
+            verdict = util > expected ? Projection.Danger : Projection.Ok;
 
-        // Flat or declining usage: nothing will be exhausted on its own.
-        if (burnPerSec <= 1e-9)
-            return (Projection.Ok, double.PositiveInfinity, 0);
+            if (util >= 1.0)
+                exhaust = 0;
+            else if (util > 0)
+                exhaust = elapsed * (1.0 - util) / util;
+            else
+                exhaust = double.PositiveInfinity;
+        }
 
-        double remaining = Math.Max(0.0, 1.0 - util);
-        double exhaust = remaining / burnPerSec;               // seconds until 100%
-        double untilReset = reset > 0 ? reset - now : double.PositiveInfinity;
-
-        Projection verdict = exhaust < untilReset ? Projection.Danger : Projection.Ok;
-        return (verdict, exhaust, burnPerSec * 3600);
+        return (verdict, exhaust, burnPerHour);
     }
 }

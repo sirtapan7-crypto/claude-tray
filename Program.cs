@@ -173,7 +173,7 @@ internal sealed class TrayContext : ApplicationContext
     private UsageData? _data;
     private DateTime? _lastRefresh;
     private UpdateInfo? _update;
-    private string _metric = "5h";
+    private string _metric;
     private bool _flashOn;
     private bool _updating;
     private IntPtr _iconHandle = IntPtr.Zero;
@@ -183,6 +183,7 @@ internal sealed class TrayContext : ApplicationContext
 
     public TrayContext()
     {
+        _metric = _settings.Metric; // restore the last-selected window (BuildMenu reads it)
         _tray = new NotifyIcon
         {
             Visible = true,
@@ -262,6 +263,8 @@ internal sealed class TrayContext : ApplicationContext
         _metric = key;
         foreach (var it in _metricItems)
             it.Checked = (string)it.Tag! == key;
+        _settings.Metric = key;
+        try { _settings.Save(); } catch { /* non-fatal: selection still applies this session */ }
         Render();
     }
 
@@ -427,7 +430,10 @@ internal sealed class TrayContext : ApplicationContext
     {
         if (_data is not { Error: null }) return (Projection.Unknown, 0);
         long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        var (verdict, eta, _) = _burn.Project(_metric, _data.Metric(_metric), _data.ResetOf(_metric), now);
+        // Weekly uses the proportional "pace line" for its verdict (window = 7 days); the
+        // other metrics keep the regression-based verdict (windowSeconds = 0).
+        double window = _metric == "7d" ? 7.0 * 24 * 3600 : 0;
+        var (verdict, eta, _) = _burn.Project(_metric, _data.Metric(_metric), _data.ResetOf(_metric), now, window);
         return (verdict, eta);
     }
 
@@ -491,12 +497,16 @@ internal sealed class TrayContext : ApplicationContext
         }
 
         var (verdict, eta) = CurrentProjection();
+        string scope = Labels[_metric]; // make clear which window the projection is about
+        bool hasEta = eta > 0 && !double.IsInfinity(eta);
         if (verdict == Projection.Danger)
-            lines.Add($"⚠ Projection: 100% in {FmtDays(eta)} (before reset)");
+            lines.Add(hasEta
+                ? $"⚠ {scope} projection: 100% in {FmtDays(eta)} (before reset)"
+                : $"⚠ {scope} projection: above safe pace (before reset)");
         else if (verdict == Projection.Ok)
             lines.Add(double.IsInfinity(eta)
-                ? "✓ Projection: on track"
-                : $"✓ Projection: 100% in {FmtDays(eta)} (after reset)");
+                ? $"✓ {scope} projection: on track"
+                : $"✓ {scope} projection: 100% in {FmtDays(eta)} (after reset)");
 
         string updated = _lastRefresh is { } t ? $"  ⟳ {t:HH:mm:ss}" : "";
         lines.Add($"Status: {_data.Status}{updated}");

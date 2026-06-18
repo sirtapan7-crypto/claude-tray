@@ -14,11 +14,17 @@ internal sealed class Settings
     public const int MaxRefreshSeconds = 3600;   // an hour between polls is plenty
     public const int DefaultRefreshSeconds = 300; // 5 min — the historical hardcoded cadence
 
+    public const string DefaultMetric = "5h";
+    private static readonly string[] ValidMetrics = { "5h", "7d", "extra" };
+
     /// <summary>How often the tray polls the usage API, in seconds.</summary>
     public int RefreshSeconds { get; set; } = DefaultRefreshSeconds;
 
     /// <summary>Draw the usage percentage number on the tray icon (otherwise just the fill bar).</summary>
     public bool ShowPercentage { get; set; } = true;
+
+    /// <summary>Which usage window the tray displays: "5h", "7d", or "extra".</summary>
+    public string Metric { get; set; } = DefaultMetric;
 
     private static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -48,5 +54,9 @@ internal sealed class Settings
     }
 
     private void Clamp()
-        => RefreshSeconds = Math.Clamp(RefreshSeconds, MinRefreshSeconds, MaxRefreshSeconds);
+    {
+        RefreshSeconds = Math.Clamp(RefreshSeconds, MinRefreshSeconds, MaxRefreshSeconds);
+        if (Array.IndexOf(ValidMetrics, Metric) < 0)
+            Metric = DefaultMetric;
+    }
 }
