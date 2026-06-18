@@ -73,8 +73,8 @@
   .brand{display:flex;align-items:center;gap:12px;font-weight:800;font-size:1.05rem;letter-spacing:-.02em}
   .brand img{width:32px;height:32px;border-radius:8px}
   .nav-links{display:flex;align-items:center;gap:28px}
-  .nav-links a{color:var(--muted);font-weight:500;font-size:.95rem;transition:color .2s}
-  .nav-links a:hover{color:var(--text)}
+  .nav-links a:not(.btn){color:var(--muted);font-weight:500;font-size:.95rem;transition:color .2s}
+  .nav-links a:not(.btn):hover{color:var(--text)}
   .btn{
     display:inline-flex;align-items:center;gap:9px;
     padding:11px 20px;border-radius:11px;font-weight:600;font-size:.95rem;
