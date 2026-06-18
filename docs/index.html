@@ -4,12 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Claude Code Tray — Claude usage in your Windows tray</title>
-<meta name="description" content="A native Windows tray monitor for your Claude Code usage. Crisp DPI-aware icon, burn-rate projection, and a privacy-first 24h usage breakdown — zero config.">
+<meta name="description" content="A native Windows tray monitor for your Claude Code usage. Crisp DPI-aware icon, smart usage projection, and a privacy-first 24h usage breakdown — zero config.">
 
 <!-- Open Graph / social -->
 <meta property="og:type" content="website">
 <meta property="og:title" content="Claude Code Tray">
-<meta property="og:description" content="Rate-limit %, burn-rate projection, and a 24h usage breakdown — always in your Windows tray.">
+<meta property="og:description" content="Rate-limit %, smart usage projection, and a 24h usage breakdown — always in your Windows tray.">
 <meta property="og:image" content="social-preview.png">
 <meta property="og:url" content="https://alegauss.github.io/claude-tray/">
 <meta name="twitter:card" content="summary_large_image">
@@ -304,8 +304,8 @@
       </div>
       <div class="card feat reveal">
         <div class="ico">📈</div>
-        <h3>Burn-rate projection</h3>
-        <p>Tracks how fast usage climbs and projects when you'd hit 100% — warning you <b>before</b> the window resets, not after.</p>
+        <h3>Smart projection</h3>
+        <p>Projects when you'd hit 100% — warning you <b>before</b> the window resets, not after. A proportional pace line for the 7-day week, burn-rate regression for the 5h session.</p>
       </div>
       <div class="card feat reveal">
         <div class="ico">🔍</div>
@@ -337,7 +337,7 @@
         <ul class="feat-list">
           <li><span class="chk">✓</span><span><b>5h session</b> & <b>7d week</b> usage side by side</span></li>
           <li><span class="chk">✓</span><span><b>Extra usage</b> and a live countdown to the next reset</span></li>
-          <li><span class="chk">✓</span><span>The <b>projected time to 100%</b> at your current pace</span></li>
+          <li><span class="chk">✓</span><span>The <b>projected time to 100%</b> at your current pace, labelled with the active window (e.g. <i>Week 7d projection</i>)</span></li>
           <li><span class="chk">✓</span><span>Connection status — a clear <b>not authenticated</b> prompt on token expiry (with one-click re-auth), logo while connecting</span></li>
         </ul>
       </div>
@@ -354,7 +354,7 @@
     <div class="sec-head reveal">
       <div class="eyebrow">Observability</div>
       <h2>It doesn't just show a number — it predicts</h2>
-      <p>Using a short rolling history and least-squares regression on your utilization, the icon's color tells you what's coming.</p>
+      <p>The icon's color tells you what's coming. The <b>7-day week</b> uses a proportional <b>pace line</b> — your usage against the share an even burn would have spent by now — accurate from the very first reading. The <b>5h session</b> uses least-squares regression on a short rolling history of your utilization.</p>
     </div>
     <div class="proj reveal">
       <div class="state ok">
@@ -453,7 +453,7 @@ dotnet publish -c Release        <span class="c"># single self-contained .exe</s
         <div class="eyebrow">Right-click menu</div>
         <h2>Control, without leaving the tray</h2>
         <ul class="feat-list">
-          <li><span class="chk">✓</span><span><b>Show on icon</b> — switch between Session 5h / Week 7d / Extra</span></li>
+          <li><span class="chk">✓</span><span><b>Show on icon</b> — switch between Session 5h / Week 7d / Extra (remembered across restarts)</span></li>
           <li><span class="chk">✓</span><span><b>Refresh now</b> — immediate API read</span></li>
           <li><span class="chk">✓</span><span><b>Open Claude Code</b> — re-authenticate in one click if the token expires</span></li>
           <li><span class="chk">✓</span><span><b>Settings…</b> — refresh interval, display, and <b>Start with Windows</b> autostart (no admin)</span></li>

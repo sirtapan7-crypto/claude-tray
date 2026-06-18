@@ -45,22 +45,34 @@ The **app icon** (`.exe`, installer, shortcuts) is the same clay tile with a whi
 generated as a multi-resolution `.ico` from the same GDI+ renderer (`ClaudeTray.ico`).
 
 Tooltip (hover): 5h session, 7d week, extra usage, countdown to reset, the **projected
-time to 100%**, and status.
+time to 100%** (labelled with the active window, e.g. *Week 7d projection*), and status.
 
 ## Projection (observability)
 
-Beyond the current percentage, the app tracks the **burn rate** — how fast usage is
-climbing. It keeps a short rolling history of utilization samples per window, estimates
-the slope by least-squares regression, and projects when usage would reach 100%:
+Beyond the current percentage, the app projects when usage would reach 100% and warns you
+*before* the window resets. Two verdicts drive the fill-bar color:
 
-- **on track** — at the current pace, usage stays under 100% until the window resets → the
-  fill bar stays its normal blue (no extra signal)
-- **danger** — at the current pace, usage hits 100% *before* the reset (you'll run out early)
-  → the fill bar turns **vivid red**
+- **on track** — usage stays under 100% until the window resets → the fill bar stays its
+  normal blue (no extra signal)
+- **danger** — usage hits 100% *before* the reset (you'll run out early) → the fill bar turns
+  **vivid red**
+
+How the verdict is computed depends on the window:
+
+- **Week 7d — pace line.** The weekly window uses a proportional rule: it compares your
+  current usage against the share an even, constant burn would have spent by now
+  (`elapsed ÷ 7 days`). If you're above that line, it's *danger*. The projected time to 100%
+  is a rule-of-three from your average pace since the window started
+  (`elapsed × (100 − used) ÷ used`). This needs no history — it's accurate from the first
+  reading — and a short burst over a 7-day window won't trip a false alarm the way a slope
+  fit would.
+- **Session 5h / Extra — burn rate.** These keep a short rolling history of utilization
+  samples, estimate the slope by least-squares regression, and project exhaustion from the
+  current pace. They kick in after a couple of polls (~5–10 min), once there is enough
+  history to trust the trend.
 
 The bar color and the tooltip's projected time follow whichever metric you have **Show on
-icon** set to (session 5h, week 7d, or extra). It kicks in after a couple of polls (~5–10 min),
-once there is enough history to trust the trend; resets are detected and clear the history.
+icon** set to (session 5h, week 7d, or extra). Resets are detected and clear the history.
 
 ## Usage insights (last 24h)
 
@@ -173,7 +185,7 @@ installs pick it up automatically (see [Updates](#updates)).
 
 ## Menu (right-click the icon)
 
-- **Show on icon** — Session 5h / Week 7d / Extra
+- **Show on icon** — Session 5h / Week 7d / Extra (remembered across restarts)
 - **Usage insights (24h)** — local cost breakdown from session transcripts (see below)
 - **Refresh now** — immediate API read
 - **Open Claude Code** — launches the Claude Code CLI so it re-authenticates and refreshes the
