@@ -14,6 +14,10 @@ internal sealed class Settings
     public const int MaxRefreshSeconds = 3600;   // an hour between polls is plenty
     public const int DefaultRefreshSeconds = 300; // 5 min — the historical hardcoded cadence
 
+    public const int MinAuthRetrySeconds = 5;       // floor on the signed-out re-check cadence
+    public const int MaxAuthRetrySeconds = 300;     // 5 min is as slow as a retry needs to be
+    public const int DefaultAuthRetrySeconds = 10;  // re-check every 10s while signed out
+
     public const string DefaultMetric = "5h";
     private static readonly string[] ValidMetrics = { "5h", "7d", "extra" };
 
@@ -25,6 +29,26 @@ internal sealed class Settings
 
     /// <summary>Which usage window the tray displays: "5h", "7d", or "extra".</summary>
     public string Metric { get; set; } = DefaultMetric;
+
+    /// <summary>The user's home directory — the default working directory when none is chosen.</summary>
+    public static string DefaultDirectory =>
+        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+    /// <summary>
+    /// Working directory Claude Code opens in — for the "Open Claude Code" menu item, a tray
+    /// double-click, and auto-open. Never empty: an unset or cleared value falls back to the
+    /// user's home directory (<see cref="DefaultDirectory"/>).
+    /// </summary>
+    public string ClaudeCodeDirectory { get; set; } = DefaultDirectory;
+
+    /// <summary>
+    /// When a poll returns HTTP 401 (expired token), automatically launch Claude Code so it can
+    /// refresh the OAuth token without the user having to act.
+    /// </summary>
+    public bool AutoOpenOnUnauthenticated { get; set; } = false;
+
+    /// <summary>While signed out, how often to re-poll the usage API (seconds) until auth returns.</summary>
+    public int AuthRetrySeconds { get; set; } = DefaultAuthRetrySeconds;
 
     private static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -56,6 +80,9 @@ internal sealed class Settings
     private void Clamp()
     {
         RefreshSeconds = Math.Clamp(RefreshSeconds, MinRefreshSeconds, MaxRefreshSeconds);
+        AuthRetrySeconds = Math.Clamp(AuthRetrySeconds, MinAuthRetrySeconds, MaxAuthRetrySeconds);
+        if (string.IsNullOrWhiteSpace(ClaudeCodeDirectory))
+            ClaudeCodeDirectory = DefaultDirectory;
         if (Array.IndexOf(ValidMetrics, Metric) < 0)
             Metric = DefaultMetric;
     }

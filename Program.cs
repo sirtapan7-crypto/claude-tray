@@ -73,7 +73,7 @@ internal static class Program
         if (args.Length >= 1 && args[0] == "--settings")
         {
             var previewApp = new System.Windows.Application();
-            var win = new SettingsWindow(Settings.Load(), _ => { });
+            var win = new SettingsWindow(Settings.Load(), _ => { }, args.Length >= 2 ? args[1] : null);
             previewApp.Run(win);
             return;
         }
@@ -176,6 +176,7 @@ internal sealed class TrayContext : ApplicationContext
     private string _metric;
     private bool _flashOn;
     private bool _updating;
+    private bool _autoOpenedForAuth; // guards auto-open so we launch once per signed-out spell
     private IntPtr _iconHandle = IntPtr.Zero;
 
     [DllImport("user32.dll", SetLastError = true)]
@@ -191,6 +192,9 @@ internal sealed class TrayContext : ApplicationContext
             ContextMenuStrip = BuildMenu(),
         };
         Render(); // initial "connecting" icon
+
+        // A double-click on the tray icon opens Claude Code (same as the menu item).
+        _tray.DoubleClick += (_, _) => OpenClaudeCode();
 
         _poll.Interval = _settings.RefreshSeconds * 1000;
         _poll.Tick += async (_, _) => await RefreshAsync();
@@ -303,9 +307,11 @@ internal sealed class TrayContext : ApplicationContext
     // Persist the edited settings and apply the new values immediately.
     private void ApplySettings(Settings updated)
     {
-        bool intervalChanged = updated.RefreshSeconds != _settings.RefreshSeconds;
         _settings.RefreshSeconds = updated.RefreshSeconds;
         _settings.ShowPercentage = updated.ShowPercentage;
+        _settings.ClaudeCodeDirectory = updated.ClaudeCodeDirectory;
+        _settings.AutoOpenOnUnauthenticated = updated.AutoOpenOnUnauthenticated;
+        _settings.AuthRetrySeconds = updated.AuthRetrySeconds;
 
         try { _settings.Save(); }
         catch (Exception ex)
@@ -314,14 +320,10 @@ internal sealed class TrayContext : ApplicationContext
                 "Claude Code Tray", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
 
-        if (intervalChanged)
-        {
-            // Restart the timer so the new cadence takes effect from now.
-            _poll.Stop();
-            _poll.Interval = _settings.RefreshSeconds * 1000;
-            _poll.Start();
-        }
-        Render(); // reflect a possible show-percentage change immediately
+        // Re-arm the poll cadence for the current auth state (handles a changed interval, retry
+        // cadence, or a freshly enabled auto-open) and reflect a show-percentage change.
+        AdjustForAuthState();
+        Render();
     }
 
     // Fill the "Usage insights" submenu from the cached scan; trigger a refresh for next time.
@@ -380,6 +382,33 @@ internal sealed class TrayContext : ApplicationContext
         _flashOn = false;
         Render();
         RecomputeInsights();
+        AdjustForAuthState();
+    }
+
+    // While signed out, re-poll on the (faster) retry cadence so a fresh token is noticed quickly,
+    // and — if enabled — launch Claude Code once to prompt re-auth. As soon as a poll succeeds,
+    // restore the normal cadence and re-arm the one-shot auto-open for the next signed-out spell.
+    private void AdjustForAuthState()
+    {
+        bool unauthorized = _data is { Unauthorized: true };
+
+        int desiredMs = (unauthorized ? _settings.AuthRetrySeconds : _settings.RefreshSeconds) * 1000;
+        if (_poll.Interval != desiredMs)
+        {
+            _poll.Stop();
+            _poll.Interval = desiredMs;
+            _poll.Start();
+        }
+
+        if (!unauthorized)
+        {
+            _autoOpenedForAuth = false;
+        }
+        else if (_settings.AutoOpenOnUnauthenticated && !_autoOpenedForAuth)
+        {
+            _autoOpenedForAuth = true;
+            OpenClaudeCode();
+        }
     }
 
     // Ask GitHub for the latest release; if newer, surface it in the menu and notify once.
@@ -534,16 +563,22 @@ internal sealed class TrayContext : ApplicationContext
     // Open the Claude Code CLI in a terminal. Starting it makes Claude Code validate and refresh
     // the OAuth token, which clears an expired-token (401) state for the next poll. `claude` is on
     // PATH for anyone who uses Claude Code, so the shell resolves it regardless of install method.
-    private static void OpenClaudeCode()
+    private void OpenClaudeCode()
     {
         try
         {
-            Process.Start(new ProcessStartInfo
+            var psi = new ProcessStartInfo
             {
                 FileName = "cmd.exe",
                 Arguments = "/k claude",
                 UseShellExecute = true,
-            });
+            };
+            // Open in the configured working directory when set and still present; otherwise let
+            // the OS default apply (the user's home directory).
+            string dir = _settings.ClaudeCodeDirectory;
+            if (!string.IsNullOrWhiteSpace(dir) && Directory.Exists(dir))
+                psi.WorkingDirectory = dir;
+            Process.Start(psi);
         }
         catch (Exception ex)
         {

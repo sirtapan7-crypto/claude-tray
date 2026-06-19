@@ -9,6 +9,33 @@
         ThemeMode="System"
         FontFamily="Segoe UI Variable Text, Segoe UI">
 
+    <Window.Resources>
+        <!-- A clickable info card on the About page: lifts and accents its border on hover so it
+             reads as a link, not a static panel. The URL is carried in each card's Tag. -->
+        <Style x:Key="LinkCard" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource CardBackgroundFillColorDefaultBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="14,12" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource CardBackgroundFillColorSecondaryBrush}" />
+                    <Setter Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Translucent pill used for the version / platform tags over the hero gradient. -->
+        <Style x:Key="HeroChip" TargetType="Border">
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="10,3" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+            <Setter Property="Background" Value="#30FFFFFF" />
+        </Style>
+    </Window.Resources>
+
     <!-- Two columns: a fixed navigation sidebar and a content pane that fills the rest.
          The whole layout is declared here (declarative XAML) — no imperative z-order stacking,
          so what you read is exactly what renders. -->
@@ -29,14 +56,30 @@
                            Margin="8,0,0,14"
                            Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
 
-                <!-- Selected nav item: accent bar + subtle background, the Fluent NavigationView look. -->
-                <Border CornerRadius="6" Padding="0" Height="40"
-                        Background="{DynamicResource SubtleFillColorSecondaryBrush}">
+                <!-- Nav items. Selection (accent bar + subtle background) is toggled in code-behind;
+                     a transparent background keeps the whole row clickable even when unselected. -->
+                <Border x:Name="NavGeneral" CornerRadius="6" Height="40" Margin="0,0,0,4"
+                        Background="Transparent" Cursor="Hand"
+                        MouseLeftButtonUp="Nav_Click" Tag="General">
                     <Grid>
-                        <Border Width="3" CornerRadius="2" HorizontalAlignment="Left"
-                                Margin="2,8,0,8"
+                        <Border x:Name="AccentGeneral" Width="3" CornerRadius="2"
+                                HorizontalAlignment="Left" Margin="2,8,0,8"
                                 Background="{DynamicResource AccentFillColorDefaultBrush}" />
                         <TextBlock Text="General" VerticalAlignment="Center"
+                                   Margin="16,0,0,0" FontSize="14"
+                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                    </Grid>
+                </Border>
+
+                <Border x:Name="NavAbout" CornerRadius="6" Height="40"
+                        Background="Transparent" Cursor="Hand"
+                        MouseLeftButtonUp="Nav_Click" Tag="About">
+                    <Grid>
+                        <Border x:Name="AccentAbout" Width="3" CornerRadius="2"
+                                HorizontalAlignment="Left" Margin="2,8,0,8"
+                                Visibility="Collapsed"
+                                Background="{DynamicResource AccentFillColorDefaultBrush}" />
+                        <TextBlock Text="About" VerticalAlignment="Center"
                                    Margin="16,0,0,0" FontSize="14"
                                    Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                     </Grid>
@@ -44,89 +87,304 @@
             </StackPanel>
         </Border>
 
-        <!-- ===== Content ===== -->
-        <Grid Grid.Column="1" Margin="32,28,32,20">
+        <!-- ===== Content host: a page area (General / About overlaid, visibility-toggled) + a
+             pinned footer shared by both pages. ===== -->
+        <Grid Grid.Column="1">
             <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" /><!-- Refresh header -->
-                <RowDefinition Height="Auto" /><!-- Refresh caption -->
-                <RowDefinition Height="Auto" /><!-- Interval card -->
-                <RowDefinition Height="Auto" /><!-- Display header -->
-                <RowDefinition Height="Auto" /><!-- Display card -->
-                <RowDefinition Height="Auto" /><!-- Startup header -->
-                <RowDefinition Height="Auto" /><!-- Startup card -->
-                <RowDefinition Height="*" />   <!-- spacer -->
+                <RowDefinition Height="*" />   <!-- page -->
                 <RowDefinition Height="Auto" /><!-- footer -->
             </Grid.RowDefinitions>
 
-            <TextBlock Grid.Row="0" Text="Refresh"
-                       FontSize="16" FontWeight="SemiBold"
-                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-            <TextBlock Grid.Row="1" Text="How often the tray checks your Claude usage."
-                       Margin="0,2,0,12"
-                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-
-            <!-- Interval card + heartbeat cost estimate -->
-            <StackPanel Grid.Row="2">
-                <Border CornerRadius="8" Padding="16,12"
-                        Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
-                        BorderThickness="1"
-                        BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="Interval" VerticalAlignment="Center"
+            <!-- ========================= GENERAL PAGE ========================= -->
+            <Grid x:Name="GeneralPane" Grid.Row="0" Margin="32,28,32,0">
+                <!-- The settings sections scroll as a group; the footer below stays pinned, so adding
+                     sections never clips the Save/Cancel buttons. -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,14,0">
+                    <StackPanel>
+                        <TextBlock Text="Refresh"
+                                   FontSize="16" FontWeight="SemiBold"
                                    Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                        <Slider Grid.Column="1" x:Name="IntervalSlider"
-                                Margin="20,0,16,0" VerticalAlignment="Center"
-                                Minimum="0.5" Maximum="60"
-                                TickFrequency="0.5" IsSnapToTickEnabled="True"
-                                ValueChanged="IntervalSlider_ValueChanged" />
-                        <TextBlock Grid.Column="2" x:Name="IntervalValue"
-                                   VerticalAlignment="Center" MinWidth="72"
+                        <TextBlock Text="How often the tray checks your Claude usage."
+                                   Margin="0,2,0,12"
                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                    </Grid>
-                </Border>
 
-                <!-- Each refresh is a 1-token Haiku call (the "heartbeat"). This caption recalculates
-                     the consumption live as the slider moves, so the cost of the chosen cadence is explicit. -->
-                <TextBlock x:Name="CostEstimate"
-                           Margin="2,10,2,0" TextWrapping="Wrap" FontSize="12"
-                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-            </StackPanel>
+                        <!-- Interval card + heartbeat cost estimate -->
+                        <Border CornerRadius="8" Padding="16,12"
+                                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                                BorderThickness="1"
+                                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Interval" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                <Slider Grid.Column="1" x:Name="IntervalSlider"
+                                        Margin="20,0,16,0" VerticalAlignment="Center"
+                                        Minimum="0.5" Maximum="60"
+                                        TickFrequency="0.5" IsSnapToTickEnabled="True"
+                                        ValueChanged="IntervalSlider_ValueChanged" />
+                                <TextBlock Grid.Column="2" x:Name="IntervalValue"
+                                           VerticalAlignment="Center" MinWidth="72"
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            </Grid>
+                        </Border>
 
-            <TextBlock Grid.Row="3" Text="Display"
-                       FontSize="16" FontWeight="SemiBold" Margin="0,22,0,12"
-                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                        <!-- Each refresh is a 1-token Haiku call (the "heartbeat"). This caption recalculates
+                             the consumption live as the slider moves, so the cost of the chosen cadence is explicit. -->
+                        <TextBlock x:Name="CostEstimate"
+                                   Margin="2,10,2,0" TextWrapping="Wrap" FontSize="12"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
 
-            <!-- Display card -->
-            <Border Grid.Row="4" CornerRadius="8" Padding="16,12"
-                    Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
-                    BorderThickness="1"
-                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
-                <CheckBox x:Name="ShowPctCheck"
-                          Content="Show the usage percentage on the icon"
-                          Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-            </Border>
+                        <TextBlock Text="Display"
+                                   FontSize="16" FontWeight="SemiBold" Margin="0,22,0,12"
+                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
 
-            <TextBlock Grid.Row="5" Text="Startup"
-                       FontSize="16" FontWeight="SemiBold" Margin="0,22,0,12"
-                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                        <!-- Display card -->
+                        <Border CornerRadius="8" Padding="16,12"
+                                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                                BorderThickness="1"
+                                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
+                            <CheckBox x:Name="ShowPctCheck"
+                                      Content="Show the usage percentage on the icon"
+                                      Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                        </Border>
 
-            <!-- Startup card -->
-            <Border Grid.Row="6" CornerRadius="8" Padding="16,12"
-                    Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
-                    BorderThickness="1"
-                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
-                <CheckBox x:Name="StartupCheck"
-                          Content="Start with Windows"
-                          Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-            </Border>
+                        <TextBlock Text="Claude Code"
+                                   FontSize="16" FontWeight="SemiBold" Margin="0,22,0,12"
+                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
 
-            <!-- ===== Footer ===== -->
-            <Grid Grid.Row="8" Margin="0,16,0,0">
+                        <!-- Working-directory card: where Claude Code opens (menu, double-click, auto-open). -->
+                        <Border CornerRadius="8" Padding="16,12"
+                                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                                BorderThickness="1"
+                                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
+                            <StackPanel>
+                                <TextBlock Text="Working directory"
+                                           Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                <Grid Margin="0,8,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" x:Name="DirectoryBox"
+                                             VerticalContentAlignment="Center" Padding="8,5" />
+                                    <Button Grid.Column="1" x:Name="BrowseButton" Content="Browse…"
+                                            MinWidth="92" Padding="14,5" Margin="8,0,0,0"
+                                            Click="Browse_Click" />
+                                </Grid>
+                                <TextBlock Margin="0,8,0,0" TextWrapping="Wrap" FontSize="12"
+                                           Text="Used when launching Claude Code from the tray menu, a double-click on the tray icon, or auto-open. Defaults to your home directory; clear it to reset."
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Sign-out behaviour: auto-open + retry cadence while a token is expired. -->
+                        <Border CornerRadius="8" Padding="16,12" Margin="0,10,0,0"
+                                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                                BorderThickness="1"
+                                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
+                            <StackPanel>
+                                <CheckBox x:Name="AutoOpenCheck"
+                                          Content="Open Claude Code automatically when a check finds you signed out"
+                                          Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                <Grid Margin="0,14,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Retry while signed out"
+                                               VerticalAlignment="Center"
+                                               Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                    <Slider Grid.Column="1" x:Name="RetrySlider"
+                                            Margin="20,0,16,0" VerticalAlignment="Center"
+                                            TickFrequency="5" IsSnapToTickEnabled="True"
+                                            ValueChanged="RetrySlider_ValueChanged" />
+                                    <TextBlock Grid.Column="2" x:Name="RetryValue"
+                                               VerticalAlignment="Center" MinWidth="72"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                </Grid>
+                                <TextBlock Margin="0,8,0,0" TextWrapping="Wrap" FontSize="12"
+                                           Text="How often to re-check your usage after a sign-out, until you authenticate again."
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock Text="Startup"
+                                   FontSize="16" FontWeight="SemiBold" Margin="0,22,0,12"
+                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+
+                        <!-- Startup card -->
+                        <Border CornerRadius="8" Padding="16,12" Margin="0,0,0,4"
+                                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                                BorderThickness="1"
+                                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
+                            <CheckBox x:Name="StartupCheck"
+                                      Content="Start with Windows"
+                                      Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+
+            <!-- ========================= ABOUT PAGE ========================= -->
+            <Grid x:Name="AboutPane" Grid.Row="0" Visibility="Collapsed">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <!-- HERO: full-bleed Claude clay/coral gradient with the logo, name, tagline,
+                             and version/platform chips. This is the "bold" surface. -->
+                        <Border MinHeight="188">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                    <GradientStop Color="#E89072" Offset="0" />
+                                    <GradientStop Color="#D97757" Offset="0.55" />
+                                    <GradientStop Color="#B0512F" Offset="1" />
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <Grid Margin="32,26,32,26">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <!-- Logo on a soft white plate so the clay tile reads on the gradient. -->
+                                    <Border Width="104" Height="104" CornerRadius="22"
+                                            Background="#22FFFFFF" Padding="6">
+                                        <Image x:Name="LogoImage" Width="92" Height="92"
+                                               RenderOptions.BitmapScalingMode="HighQuality" />
+                                    </Border>
+                                    <StackPanel Margin="22,0,0,0" VerticalAlignment="Center" MaxWidth="360">
+                                        <TextBlock Text="Claude Code Tray"
+                                                   FontSize="29" FontWeight="Bold"
+                                                   Foreground="White" TextWrapping="Wrap" />
+                                        <TextBlock Text="A native Windows tray monitor for your Claude Code usage — at a glance, always on."
+                                                   Margin="0,4,0,0" FontSize="13"
+                                                   TextWrapping="Wrap" Foreground="#EEFFFFFF" />
+                                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                            <Border Style="{StaticResource HeroChip}">
+                                                <TextBlock x:Name="HeroVersion" Foreground="White" FontSize="12" FontWeight="SemiBold" />
+                                            </Border>
+                                            <Border Style="{StaticResource HeroChip}">
+                                                <TextBlock Text="Windows 10 · 11" Foreground="White" FontSize="12" />
+                                            </Border>
+                                            <Border Style="{StaticResource HeroChip}">
+                                                <TextBlock Text=".NET 10" Foreground="White" FontSize="12" />
+                                            </Border>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- BODY -->
+                        <StackPanel Margin="32,22,32,26">
+                            <TextBlock TextWrapping="Wrap" LineHeight="20"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                       Text="Claude Code Tray draws your rate-limit usage as a crisp, DPI-aware icon that lives only in the Windows tray — the session (5h), week (7d) and extra windows, with a burn-rate projection that warns before you run out. It's free, open source, and made by the community." />
+
+                            <!-- Quick links — clickable cards (URL in each card's Tag). -->
+                            <TextBlock Text="Project &amp; links"
+                                       FontSize="16" FontWeight="SemiBold" Margin="0,22,0,12"
+                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+
+                            <UniformGrid Columns="2" Margin="-6,0,-6,0">
+                                <Border Style="{StaticResource LinkCard}" Margin="6"
+                                        MouseLeftButtonUp="Link_Click"
+                                        Tag="https://github.com/alegauss/claude-tray">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="🐙" FontSize="22" VerticalAlignment="Center" Margin="0,0,12,0" />
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="GitHub repository" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                            <TextBlock Text="Source, README &amp; docs" FontSize="12"
+                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Style="{StaticResource LinkCard}" Margin="6"
+                                        MouseLeftButtonUp="Link_Click"
+                                        Tag="https://github.com/alegauss/claude-tray/releases">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="📦" FontSize="22" VerticalAlignment="Center" Margin="0,0,12,0" />
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="Releases" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                            <TextBlock Text="Downloads &amp; changelog" FontSize="12"
+                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Style="{StaticResource LinkCard}" Margin="6"
+                                        MouseLeftButtonUp="Link_Click"
+                                        Tag="https://github.com/alegauss/claude-tray/issues/new">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="🐛" FontSize="22" VerticalAlignment="Center" Margin="0,0,12,0" />
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="Report an issue" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                            <TextBlock Text="Bugs &amp; feature ideas" FontSize="12"
+                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Style="{StaticResource LinkCard}" Margin="6"
+                                        MouseLeftButtonUp="Link_Click"
+                                        Tag="https://github.com/alegauss/claude-tray">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="⭐" FontSize="22" VerticalAlignment="Center" Margin="0,0,12,0" />
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="Star the project" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                            <TextBlock Text="Open the repo and click ★" FontSize="12"
+                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+                            </UniformGrid>
+
+                            <!-- Get involved -->
+                            <TextBlock Text="Get involved"
+                                       FontSize="16" FontWeight="SemiBold" Margin="0,22,0,12"
+                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+
+                            <Border CornerRadius="10" Padding="18,16"
+                                    Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                                    BorderThickness="1"
+                                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
+                                <StackPanel>
+                                    <TextBlock TextWrapping="Wrap"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                               Text="This is an open-source community project — pull requests, bug reports and ideas are all welcome." />
+                                    <StackPanel Margin="0,12,0,0">
+                                        <TextBlock Margin="0,0,0,6" TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                                   Text="⭐  Star the repo to follow new releases" />
+                                        <TextBlock Margin="0,0,0,6" TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                                   Text="🐛  Open an issue for any bug or feature idea" />
+                                        <TextBlock Margin="0,0,0,6" TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                                   Text="🔧  Fork it, run &quot;dotnet build&quot;, and send a pull request" />
+                                        <TextBlock TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                                   Text="📖  Read the README for the architecture notes" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Unofficial / community disclaimer (mirrors the README). -->
+                            <TextBlock Margin="2,18,2,0" TextWrapping="Wrap" FontSize="11"
+                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                       Text="Unofficial community project — not affiliated with, endorsed by, or sponsored by Anthropic. &quot;Claude&quot; and &quot;Claude Code&quot; are trademarks of Anthropic. Released under the MIT License." />
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+
+            <!-- ===== Footer (shared) ===== -->
+            <Grid Grid.Row="1" Margin="32,12,32,20">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
