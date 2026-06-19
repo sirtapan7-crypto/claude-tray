@@ -18,6 +18,7 @@ internal sealed class UsageData
     public string Status = "unknown";
     public string? Error;
     public bool Unauthorized;   // true on HTTP 401 — token expired, needs Claude Code to re-auth
+    public bool Transient;      // true when Error is a timeout/network/5xx blip worth retrying quietly
 
     public double Metric(string key) => key switch
     {
@@ -45,7 +46,7 @@ internal sealed class ApiClient
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
         ".claude", ".credentials.json");
 
-    private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(15) };
+    private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(30) };
 
     public async Task<UsageData> FetchAsync()
     {
@@ -81,15 +82,36 @@ internal sealed class ApiClient
 
             // If the call itself failed (e.g. expired token) and no headers came back, surface it.
             if (!resp.IsSuccessStatusCode && d.Session5h == 0 && d.Week7d == 0)
-                d.Error = $"HTTP {(int)resp.StatusCode}";
+            {
+                int code = (int)resp.StatusCode;
+                d.Transient = code >= 500 || code == 429;
+                d.Error = d.Transient
+                    ? $"Anthropic is temporarily unavailable (HTTP {code}). Retrying…"
+                    : $"HTTP {code}";
+            }
             d.Unauthorized = (int)resp.StatusCode == 401;
             return d;
         }
         catch (Exception e)
         {
-            return new UsageData { Error = e.Message };
+            return new UsageData { Error = Friendly(e), Transient = IsTransient(e) };
         }
     }
+
+    // Timeouts (HttpClient throws TaskCanceledException), DNS/connection failures and similar
+    // network blips are worth swallowing for a poll or two before alarming the user.
+    private static bool IsTransient(Exception e) =>
+        e is TaskCanceledException or OperationCanceledException or HttpRequestException
+        || e.InnerException is HttpRequestException or System.Net.Sockets.SocketException;
+
+    // Replace raw exception text (e.g. "The request was canceled due to the configured
+    // HttpClient.Timeout of 30 seconds elapsing") with something a non-developer can read.
+    private static string Friendly(Exception e) => e switch
+    {
+        TaskCanceledException or OperationCanceledException => "Couldn't reach Anthropic — the request timed out. Retrying…",
+        HttpRequestException => "Couldn't reach Anthropic — network error. Retrying…",
+        _ => e.Message,
+    };
 
     private static string ReadToken()
     {

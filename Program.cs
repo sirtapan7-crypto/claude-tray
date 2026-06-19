@@ -177,7 +177,10 @@ internal sealed class TrayContext : ApplicationContext
     private bool _flashOn;
     private bool _updating;
     private bool _autoOpenedForAuth; // guards auto-open so we launch once per signed-out spell
+    private int _consecutiveErrors;  // transient failures since the last good poll
     private IntPtr _iconHandle = IntPtr.Zero;
+
+    private const int ErrorTolerance = 2; // transient blips to ride out before showing an error
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool DestroyIcon(IntPtr handle);
@@ -371,13 +374,28 @@ internal sealed class TrayContext : ApplicationContext
 
     private async Task RefreshAsync()
     {
-        _data = await _api.FetchAsync();
-        _lastRefresh = DateTime.Now;
-        if (_data is { Error: null })
+        UsageData fresh = await _api.FetchAsync();
+        bool ok = fresh.Error == null;
+        bool transientHiccup = !ok && fresh.Transient && !fresh.Unauthorized;
+        _consecutiveErrors = transientHiccup ? _consecutiveErrors + 1 : 0;
+
+        // A single timeout or network blip shouldn't flip the icon to a scary red error: keep the
+        // last good reading (or the "connecting…" state) on screen and quietly retry on the next
+        // poll. Only surface the error once it persists across a few polls.
+        bool keepLastGood = transientHiccup
+                            && _consecutiveErrors < ErrorTolerance
+                            && _data is null or { Error: null };
+        if (!keepLastGood)
+        {
+            _data = fresh;
+            _lastRefresh = DateTime.Now;
+        }
+
+        if (ok)
         {
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             foreach (string key in Metrics)
-                _burn.Record(key, _data.Metric(key), _data.ResetOf(key), now);
+                _burn.Record(key, fresh.Metric(key), fresh.ResetOf(key), now);
         }
         _flashOn = false;
         Render();
