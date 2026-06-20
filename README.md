@@ -125,6 +125,48 @@ token expires the icon turns amber and the tooltip reads **not authenticated** �
 **Open Claude Code** (or run `claude` yourself) to refresh it, then **Refresh now** (see
 [Troubleshooting](#troubleshooting)).
 
+## ⚠️ Authentication & Anthropic's terms — please read
+
+This tool reuses your **subscription** OAuth token (`claudeAiOauth.accessToken`) to make a
+minimal, automated call to the Anthropic Messages API on each poll, purely to read the
+`anthropic-ratelimit-unified-*` headers. You should understand how that sits with Anthropic's
+current terms before relying on it.
+
+Anthropic's [Claude Code legal & compliance docs](https://code.claude.com/docs/en/legal-and-compliance)
+state (verbatim):
+
+> **OAuth authentication** is intended exclusively for purchasers of Claude Free, Pro, Max,
+> Team, and Enterprise subscription plans and is designed to support **ordinary use of Claude
+> Code and other native Anthropic applications**.
+>
+> **Developers** building products or services that interact with Claude's capabilities …
+> **should use API key authentication** through Claude Console or a supported cloud provider.
+> Anthropic does not permit third-party developers to **offer Claude.ai login** or to **route
+> requests through Free, Pro, or Max plan credentials on behalf of their users**.
+>
+> Anthropic reserves the right to take measures to enforce these restrictions and **may do so
+> without prior notice**.
+
+What this means for this tool:
+
+- **It is *not* the explicitly prohibited case.** It does not offer Claude.ai login to anyone
+  and does not route requests *on behalf of other users* — it runs locally, single-user, with
+  **your own** credentials, for **your own** individual use.
+- **It *is* a gray area.** A self-directed, automated API call from a non-native app arguably
+  falls outside "ordinary use of Claude Code." Use it at your own discretion and risk.
+- **`claude setup-token` is *not* a fix.** That token is *scoped to inference only*, is reported
+  to be **rejected by the Messages API** (so it likely wouldn't work here), and is still a
+  subscription credential under the same Consumer Terms — it changes nothing legally.
+- **There is no fully "clean" alternative that keeps this feature.** The unified subscription
+  rate-limit headers only exist on subscription OAuth credentials; an API key (the path
+  Anthropic points developers to) would report *API* limits, not your subscription's.
+- **To minimize exposure**, keep the refresh interval conservative (Settings → refresh interval)
+  — every poll is one automated API call.
+
+Governing terms: [Consumer Terms](https://www.anthropic.com/legal/consumer-terms) (Free/Pro/Max),
+[Commercial Terms](https://www.anthropic.com/legal/commercial-terms) (Team/Enterprise/API),
+[Usage Policy](https://www.anthropic.com/legal/aup).
+
 ## Requirements
 
 - Windows 10/11
