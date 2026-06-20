@@ -17,7 +17,10 @@ internal sealed class UsageData
     public double ResetExtra;
     public string Status = "unknown";
     public string? Error;
-    public bool Unauthorized;   // true on HTTP 401 — token expired, needs Claude Code to re-auth
+    public bool Unauthorized;   // true on HTTP 401 / no usable token — Claude Code must re-auth
+    public bool NeedsFullLogin; // when Unauthorized: true = no refresh token on disk, a full OAuth2
+                                // browser /login is required; false = a refresh token exists, so just
+                                // opening Claude Code silently refreshes the access token (no browser)
     public bool Transient;      // true when Error is a timeout/network/5xx blip worth retrying quietly
 
     public double Metric(string key) => key switch
@@ -52,7 +55,7 @@ internal sealed class ApiClient
     {
         try
         {
-            string token = ReadToken();
+            Creds creds = ReadCredentials();
 
             var body = new
             {
@@ -64,7 +67,7 @@ internal sealed class ApiClient
             {
                 Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json"),
             };
-            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", creds.AccessToken);
             req.Headers.TryAddWithoutValidation("anthropic-version", "2023-06-01");
 
             using HttpResponseMessage resp = await _http.SendAsync(req).ConfigureAwait(false);
@@ -90,6 +93,13 @@ internal sealed class ApiClient
                     : $"HTTP {code}";
             }
             d.Unauthorized = (int)resp.StatusCode == 401;
+            // A 401 with a refresh token on disk just needs a silent refresh (open Claude Code); without
+            // one it needs a full OAuth2 browser login. Surface which, so the tray's message is targeted.
+            if (d.Unauthorized)
+            {
+                d.NeedsFullLogin = !creds.HasRefreshToken;
+                d.Error = creds.HasRefreshToken ? RefreshHint : SignInHint;
+            }
             return d;
         }
         catch (NotAuthenticatedException e)
@@ -97,7 +107,7 @@ internal sealed class ApiClient
             // No usable token on disk yet (file missing, or no claudeAiOauth.accessToken). Treat it
             // like an HTTP 401 so the tray shows the "needs auth" state and the faster retry/auto-open
             // kicks in — but with a message that says to sign in, not a raw file-not-found error.
-            return new UsageData { Error = e.Message, Unauthorized = true };
+            return new UsageData { Error = e.Message, Unauthorized = true, NeedsFullLogin = true };
         }
         catch (Exception e)
         {
@@ -120,11 +130,17 @@ internal sealed class ApiClient
         _ => e.Message,
     };
 
-    // Shown verbatim in the tray tooltip / Insights when there's no token to use yet.
+    // Shown verbatim in the tray tooltip / Insights for each auth state.
     private const string SignInHint =
         "Not signed in to Claude Code. Open Claude Code and run /login to sign in.";
+    private const string RefreshHint =
+        "Claude Code session expired. Open Claude Code to refresh it — no login needed.";
 
-    private static string ReadToken()
+    /// <summary>The OAuth material the tray needs: the bearer token, and whether a refresh token
+    /// is on disk (which decides silent-refresh vs. full browser login on a 401).</summary>
+    private readonly record struct Creds(string AccessToken, bool HasRefreshToken);
+
+    private static Creds ReadCredentials()
     {
         if (!File.Exists(CredsPath))
             throw new NotAuthenticatedException(SignInHint);
@@ -133,7 +149,11 @@ internal sealed class ApiClient
         if (doc.RootElement.TryGetProperty("claudeAiOauth", out var oauth)
             && oauth.TryGetProperty("accessToken", out var tok)
             && tok.GetString() is { Length: > 0 } token)
-            return token;
+        {
+            bool hasRefresh = oauth.TryGetProperty("refreshToken", out var rt)
+                              && rt.GetString() is { Length: > 0 };
+            return new Creds(token, hasRefresh);
+        }
 
         throw new NotAuthenticatedException(SignInHint);
     }

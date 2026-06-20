@@ -524,9 +524,13 @@ internal sealed class TrayContext : ApplicationContext
     {
         if (_data == null) return "Claude Code — connecting…";
         if (_data.Error != null)
-            return _data.Unauthorized
-                ? "Claude Code — not signed in\nOpen Claude Code and run /login to sign in"
-                : $"Claude Code — API error\n{_data.Error}";
+        {
+            if (_data.Unauthorized)
+                return _data.NeedsFullLogin
+                    ? "Claude Code — not signed in\nOpen Claude Code and run /login to sign in"
+                    : "Claude Code — session expired\nOpen Claude Code to refresh (no login needed)";
+            return $"Claude Code — API error\n{_data.Error}";
+        }
 
         long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         string r5 = _data.Reset5h > 0 ? FmtCountdown(_data.Reset5h - now) : "--";
@@ -585,13 +589,15 @@ internal sealed class TrayContext : ApplicationContext
     {
         try
         {
-            // `claude` only auto-opens the browser login when there's NO valid session; a stale token
-            // is reused silently and won't re-auth. There's no CLI flag to force it, so when we open
-            // for re-auth we print a hint to type /login (the only reliable force-reauth path) above
-            // the prompt, then launch claude in the same window.
-            string command = forReauth
-                ? "/k echo If usage still shows \"not signed in\", type  /login  to re-authenticate. & claude"
-                : "/k claude";
+            // Two re-auth paths, decided by whether a refresh token is on disk (ApiClient sets
+            // NeedsFullLogin): with one, just launching `claude` silently refreshes the access token;
+            // without one, only a full /login re-authenticates (there's no CLI flag to force it), so we
+            // print a hint to type /login above the prompt before launching claude in the same window.
+            string command = !forReauth
+                ? "/k claude"
+                : _data is { NeedsFullLogin: true }
+                    ? "/k echo Type  /login  to sign in again, then you can close this window. & claude"
+                    : "/k echo Refreshing your Claude Code session — usage will update shortly. & claude";
             var psi = new ProcessStartInfo
             {
                 FileName = "cmd.exe",
