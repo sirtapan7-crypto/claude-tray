@@ -28,11 +28,17 @@ internal sealed class Settings
     public bool ShowPercentage { get; set; } = true;
 
     /// <summary>
-    /// Show a tray notification when a usage window resets earlier than its reported deadline —
-    /// e.g. the weekly counter dropping to 0% days before its scheduled reset (a known Claude Code
-    /// anomaly). Rare by nature, so it's enabled by default; turn it off to silence the alert.
+    /// Show a tray notification on an unexpected drop in weekly usage — the counter resetting to 0%
+    /// before its scheduled deadline, or a partial mid-window credit (e.g. 91% → 50%). Both are known
+    /// Claude Code anomalies. Rare by nature, so enabled by default; turn it off to silence the alert.
     /// </summary>
     public bool NotifyOnUnexpectedReset { get; set; } = true;
+
+    /// <summary>
+    /// Show a (calmer) tray notification on the routine weekly reset too — the "fresh week, quota's
+    /// back" ping. Off by default since it recurs every week; turn it on if you like the heads-up.
+    /// </summary>
+    public bool NotifyOnScheduledReset { get; set; } = false;
 
     /// <summary>Which usage window the tray displays: "5h", "7d", or "extra".</summary>
     public string Metric { get; set; } = DefaultMetric;

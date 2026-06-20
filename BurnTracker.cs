@@ -30,38 +30,62 @@ internal sealed class BurnTracker
     // far in the future — comfortably beyond the slowest poll cadence (1h), so an on-time reset
     // (where the deadline ≈ now) never trips it, but the days-early anomaly does.
     private const double UnexpectedResetMarginSeconds = 2 * 3600;
+    // Any real downward move in utilization (points) is worth noting — usage only climbs within a
+    // window, so a fall is always good news. This floor filters out poll-to-poll rounding jitter.
+    private const double MinDrop = 0.05;
+    // A partial drop at least this large (e.g. 91% → 50%) is reported as a Credit; below it, the fall
+    // is treated as noise and only resets the burn-rate history.
+    private const double MinCreditDrop = 0.10;
 
     private readonly Dictionary<string, Series> _series = new();
 
-    /// <summary>A usage window that reset earlier than its previously-reported deadline — the
-    /// signal behind the "unexpected reset" tray notification. Carries before/after numbers so
-    /// the event can be reported with concrete values.</summary>
-    internal readonly record struct UnexpectedReset(double PrevUtil, double PrevReset, double NewReset);
+    /// <summary>How a detected downward change is classified: a full reset on its deadline
+    /// (<see cref="Scheduled"/>) or earlier than due (<see cref="Unexpected"/>), or a partial
+    /// mid-window drop where usage was credited back without resetting (<see cref="Credit"/>).</summary>
+    internal enum ResetKind { Scheduled, Unexpected, Credit }
+
+    /// <summary>A usage window falling — the signal behind the reset/credit tray notification. Carries
+    /// the kind and before/after numbers so the event can be shown and logged with concrete values.</summary>
+    internal readonly record struct ResetEvent(
+        ResetKind Kind, double PrevUtil, double NewUtil, double PrevReset, double NewReset);
 
     /// <summary>
-    /// Record a fresh utilization sample, auto-clearing history when the window resets. Returns a
-    /// non-null <see cref="UnexpectedReset"/> when this sample shows the window resetting before its
-    /// previously-reported deadline (usage fell to ~0% while the old reset time was still well in
-    /// the future) — otherwise null.
+    /// Record a fresh utilization sample, auto-clearing history when usage falls. Returns a non-null
+    /// <see cref="ResetEvent"/> when this sample shows usage dropping (it never falls on its own within
+    /// a window): a collapse to ~0% is a full reset — <see cref="ResetKind.Unexpected"/> if it beat its
+    /// deadline by a comfortable margin, else the routine <see cref="ResetKind.Scheduled"/> weekly reset
+    /// — and a smaller-but-meaningful fall is a mid-window <see cref="ResetKind.Credit"/>.
     /// </summary>
-    public UnexpectedReset? Record(string key, double util, double reset, double now)
+    public ResetEvent? Record(string key, double util, double reset, double now)
     {
         if (!_series.TryGetValue(key, out Series? s))
             _series[key] = s = new Series();
 
-        // A new window started if the reset timestamp jumped, or utilization fell sharply
-        // (usage only climbs within a window). Either way, the old trend no longer applies.
+        // A new window started if the reset timestamp jumped, or utilization fell (usage only climbs
+        // within a window). Either way, the old trend no longer applies.
         bool resetMoved = reset > 0 && s.LastReset > 0 && Math.Abs(reset - s.LastReset) > 1;
         double prevUtil = s.Samples.Count > 0 ? s.Samples[^1].u : 0;
-        bool dropped = s.Samples.Count > 0 && util < prevUtil - 0.05;
+        double drop = s.Samples.Count > 0 ? prevUtil - util : 0;
+        bool dropped = drop > MinDrop;
 
-        // The window reset before it was due: usage collapsed to ~0% while the deadline we last
-        // saw was still comfortably in the future. A normal reset lands AT the deadline, where
-        // s.LastReset - now ≈ 0, so it stays below the margin and is treated as routine.
-        UnexpectedReset? unexpected =
-            dropped && util < 0.05 && s.LastReset > 0 && s.LastReset - now > UnexpectedResetMarginSeconds
-                ? new UnexpectedReset(prevUtil, s.LastReset, reset)
-                : null;
+        // Classify any real fall. A collapse to ~0% is a full reset (early ⇒ Unexpected, on-time ⇒
+        // Scheduled). A smaller fall that stays above zero is a Credit — usage recalculated/returned
+        // mid-window (e.g. 91% → 50%) — provided it clears the credit floor.
+        ResetEvent? evt = null;
+        if (dropped && s.LastReset > 0)
+        {
+            if (util < 0.05)
+            {
+                ResetKind kind = s.LastReset - now > UnexpectedResetMarginSeconds
+                    ? ResetKind.Unexpected
+                    : ResetKind.Scheduled;
+                evt = new ResetEvent(kind, prevUtil, util, s.LastReset, reset);
+            }
+            else if (drop >= MinCreditDrop)
+            {
+                evt = new ResetEvent(ResetKind.Credit, prevUtil, util, s.LastReset, reset);
+            }
+        }
 
         if (resetMoved || dropped)
             s.Samples.Clear();
@@ -71,7 +95,7 @@ internal sealed class BurnTracker
         if (s.Samples.Count > MaxSamples)
             s.Samples.RemoveAt(0);
 
-        return unexpected;
+        return evt;
     }
 
     /// <summary>

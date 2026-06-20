@@ -28,7 +28,7 @@ internal static class IconRenderer
     // burn rate the bar is blue ("undefined"); once a projection exists it turns green (on
     // track), or — when usage is set to hit 100% before the window resets — warms from orange
     // toward the alarming red as usage approaches 100%.
-    private static readonly Color BarUnknown = Color.FromArgb(70, 150, 245); // pre-projection blue
+    private static readonly Color BarUnknown = Color.FromArgb(60, 200, 255); // pre-projection cyan-azure (pops on the slate base)
     private static readonly Color BarFill    = Color.FromArgb(57, 230, 70);
     private static readonly Color BarOrange   = Color.FromArgb(255, 150, 20); // early-warning orange
     private static readonly Color BarDanger   = Color.FromArgb(255, 35, 30);  // vivid, alarming red

@@ -22,6 +22,7 @@ namespace ClaudeTray;
 internal partial class ToastWindow : Window
 {
     private bool _closing;
+    private double _targetScale = 1.0; // available quota after the event; the bar animates to this
 
     // Festive palette for the confetti — golds, white, coral and soft pastels read well on the gradient.
     private static readonly Color[] ConfettiColors =
@@ -34,15 +35,19 @@ internal partial class ToastWindow : Window
         (Color)ColorConverter.ConvertFromString("#FFF3B0"),
     };
 
-    public ToastWindow(string headline, double fromFraction, string ahead)
+    public ToastWindow(string emoji, string title, string subtitle, double fromUsage, double toUsage, string caption)
     {
         InitializeComponent();
 
-        double used = Math.Clamp(fromFraction, 0, 1);
-        Subtitle.Text = headline;
-        AvailPct.Text = "100%";
-        Caption.Text = $"Was {(int)Math.Round(used * 100)}% used · {ahead}";
-        FillScale.ScaleX = 1 - used; // available quota before the reset; animates up to full
+        double fromAvail = 1 - Math.Clamp(fromUsage, 0, 1);
+        _targetScale = 1 - Math.Clamp(toUsage, 0, 1); // quota left after the event
+
+        Emoji.Text = emoji;
+        TitleText.Text = title;
+        Subtitle.Text = subtitle;
+        AvailPct.Text = $"{(int)Math.Round(_targetScale * 100)}%";
+        Caption.Text = caption;
+        FillScale.ScaleX = fromAvail; // quota left before; animates up to _targetScale
 
         Loaded += OnLoaded;
     }
@@ -78,10 +83,10 @@ internal partial class ToastWindow : Window
             new DoubleAnimation(44, 0, TimeSpan.FromMilliseconds(420)) { EasingFunction = ease });
     }
 
-    // The headline metaphor: available quota fills back up to 100%, after a beat.
+    // The headline metaphor: the quota-left bar grows to its new level, after a beat.
     private void FillTheBar()
     {
-        var fill = new DoubleAnimation(1.0, TimeSpan.FromMilliseconds(900))
+        var fill = new DoubleAnimation(_targetScale, TimeSpan.FromMilliseconds(900))
         {
             BeginTime = TimeSpan.FromMilliseconds(550),
             EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut },

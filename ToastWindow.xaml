@@ -59,9 +59,9 @@
                     <!-- Header: party emoji + headline, close button pinned right. -->
                     <Grid Grid.Row="0">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="🎉" FontSize="32" VerticalAlignment="Center" />
+                            <TextBlock x:Name="Emoji" FontSize="32" VerticalAlignment="Center" />
                             <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
-                                <TextBlock Text="Surprise!" FontSize="20" FontWeight="Bold" Foreground="White" />
+                                <TextBlock x:Name="TitleText" FontSize="20" FontWeight="Bold" Foreground="White" />
                                 <TextBlock x:Name="Subtitle" FontSize="13" Foreground="#EEFFFFFF"
                                            TextWrapping="Wrap" MaxWidth="270" />
                             </StackPanel>
@@ -76,7 +76,7 @@
                     <!-- The good news, shown as available quota filling back up to 100%. -->
                     <StackPanel Grid.Row="1" VerticalAlignment="Center" Margin="0,12,0,0">
                         <Grid>
-                            <TextBlock Text="Weekly quota" FontSize="13" FontWeight="SemiBold"
+                            <TextBlock Text="Weekly quota left" FontSize="13" FontWeight="SemiBold"
                                        Foreground="White" HorizontalAlignment="Left" />
                             <TextBlock x:Name="AvailPct" FontSize="13" FontWeight="SemiBold"
                                        Foreground="White" HorizontalAlignment="Right" />

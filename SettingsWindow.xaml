@@ -163,10 +163,16 @@
                                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
                             <StackPanel>
                                 <CheckBox x:Name="NotifyResetCheck"
-                                          Content="Notify on an unexpected usage reset"
+                                          Content="Notify on an unexpected usage drop"
                                           Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                                 <TextBlock Margin="0,8,0,0" TextWrapping="Wrap" FontSize="12"
-                                           Text="Shows a tray notification if a usage window resets earlier than its reported deadline — e.g. the weekly counter dropping to 0% days before its scheduled reset. The event is also saved to reset-events.log."
+                                           Text="Shows a tray notification if weekly usage drops unexpectedly — resetting to 0% before its scheduled deadline, or a partial mid-window credit (e.g. 91% → 50%). The event is also saved to reset-events.log."
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                <CheckBox x:Name="NotifyWeeklyCheck" Margin="0,14,0,0"
+                                          Content="Notify on the routine weekly reset too"
+                                          Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                <TextBlock Margin="0,8,0,0" TextWrapping="Wrap" FontSize="12"
+                                           Text="A calmer “fresh week, quota's back” notification when your weekly limit resets on schedule. Off by default since it happens every week."
                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                             </StackPanel>
                         </Border>
