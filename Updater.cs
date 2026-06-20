@@ -99,12 +99,21 @@ internal sealed class Updater
         System.Diagnostics.Process.Start(psi);
     }
 
-    // Accept tags like "v1.3.0" or "1.3" and normalize to a 3-part Major.Minor.Build version.
+    // Accept tags like "v1.3.0", "1.3", or even a typo'd "v.1.3.8" and normalize to a 3-part
+    // Major.Minor.Build version. Any leading non-digit prefix (the "v", a stray ".", whitespace) is
+    // skipped so a tag-naming slip can't silently break update detection.
     private static bool TryParseVersion(string tag, out Version version)
     {
         version = new Version(0, 0, 0);
-        string[] parts = tag.TrimStart('v', 'V').Trim().Split('.');
-        if (parts.Length == 0 || !int.TryParse(parts[0], out _))
+        string s = tag.Trim();
+        int start = 0;
+        while (start < s.Length && !char.IsDigit(s[start]))
+            start++;
+        if (start == s.Length)
+            return false;
+
+        string[] parts = s[start..].Split('.');
+        if (!int.TryParse(parts[0], out _))
             return false;
 
         int Part(int i) => i < parts.Length && int.TryParse(parts[i], out int n) && n >= 0 ? n : 0;
