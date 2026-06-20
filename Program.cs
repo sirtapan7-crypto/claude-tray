@@ -550,17 +550,32 @@ internal sealed class TrayContext : ApplicationContext
         var (verdict, eta) = CurrentProjection();
         string scope = Labels[_metric]; // make clear which window the projection is about
         bool hasEta = eta > 0 && !double.IsInfinity(eta);
-        if (verdict == Projection.Danger)
-            lines.Add(hasEta
-                ? $"⚠ {scope} projection: 100% in {FmtDays(eta)} (before reset)"
-                : $"⚠ {scope} projection: above safe pace (before reset)");
-        else if (verdict == Projection.Ok)
-            lines.Add(double.IsInfinity(eta)
-                ? $"✓ {scope} projection: on track"
-                : $"✓ {scope} projection: 100% in {FmtDays(eta)} (after reset)");
+        // Each projection verdict has a full form and a compact fallback for when the tooltip is
+        // tight (see the 127-char cap note below). null => no projection line at all.
+        (string full, string compact)? projection = verdict switch
+        {
+            Projection.Danger => hasEta
+                ? ($"⚠ {scope} projection: 100% in {FmtDays(eta)} (before reset)", $"⚠ 100% in {FmtDays(eta)}")
+                : ($"⚠ {scope} projection: above safe pace (before reset)", "⚠ above safe pace"),
+            Projection.Ok => double.IsInfinity(eta)
+                ? ($"✓ {scope} projection: on track", "✓ on track")
+                : ($"✓ {scope} projection: 100% in {FmtDays(eta)} (after reset)", $"✓ 100% in {FmtDays(eta)}"),
+            _ => null,
+        };
 
         string updated = _lastRefresh is { } t ? $"  ⟳ {t:HH:mm:ss}" : "";
-        lines.Add($"Status: {_data.Status}{updated}");
+        string statusLine = $"Status: {_data.Status}{updated}";
+
+        // The Windows tray tooltip is capped at 127 chars (NOTIFYICONDATA.szTip). The refresh
+        // time sits on the last line, so a blind end-truncation would chop it mid-value. Keep the
+        // status/time line intact and fit the projection in: full form if it fits, else compact.
+        int used = lines.Sum(l => l.Length + 1) + statusLine.Length;
+        if (projection is { } p)
+        {
+            if (used + p.full.Length + 1 <= 127) lines.Add(p.full);
+            else if (used + p.compact.Length + 1 <= 127) lines.Add(p.compact);
+        }
+        lines.Add(statusLine);
         return string.Join("\n", lines);
     }
 
