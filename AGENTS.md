@@ -90,7 +90,6 @@ Version lives in **one place**: `<Version>` in `ClaudeTray.csproj`. Everything d
 ```
 # bump <Version>, then:
 build-installer.cmd                   # publish + build dist\ClaudeTray-Setup.exe
-powershell -File update-winget.ps1    # fill version/sha256/date in winget\*.yaml
 ```
 
 Then create a GitHub release tagged `vX.Y.Z` and attach `ClaudeTray-Setup.exe`. Installed copies
@@ -103,5 +102,4 @@ self-update from it.
 - **Privacy**: only token counts, model ids, and flags are ever read from transcripts — never
   message content. Keep it that way.
 - **Single instance** is enforced by a named mutex; a second launch exits silently.
-- The marketing page is `docs/index.html` (GitHub Pages, served from `/docs`). Don't put winget
-  there until the manifest is actually published/working.
+- The marketing page is `docs/index.html` (GitHub Pages, served from `/docs`).

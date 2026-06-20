@@ -50,16 +50,4 @@ echo === Instalador gerado com sucesso ===
 echo Arquivo: dist\ClaudeTray-Setup.exe
 echo.
 
-REM --- 4) Atualiza os manifestos winget (versao + sha256 + data) ----------
-REM Calcula o hash do instalador recem-gerado, entao o manifesto sempre bate
-REM com o binario que vai para a release (desde que esse mesmo .exe seja o publicado).
-echo === Atualizando manifestos winget ===
-echo.
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0update-winget.ps1"
-if errorlevel 1 (
-    echo.
-    echo *** ERRO: falha ao atualizar os manifestos winget. ***
-    exit /b 1
-)
-
 endlocal

@@ -19,7 +19,7 @@
     <AssemblyName>ClaudeTray</AssemblyName>
     <RootNamespace>ClaudeTray</RootNamespace>
     <!-- Single source of truth for the app version. installer.iss reads it from the built
-         .exe, and update-winget.ps1 reads it from here — no need to edit those by hand. -->
+         .exe — no need to edit it by hand. -->
     <Version>1.3.6</Version>
     <!-- Keep ProductVersion exactly "x.y.z" (no +commit suffix) so the installer can reuse it. -->
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
