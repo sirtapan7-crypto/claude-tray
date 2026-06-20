@@ -92,6 +92,13 @@ internal sealed class ApiClient
             d.Unauthorized = (int)resp.StatusCode == 401;
             return d;
         }
+        catch (NotAuthenticatedException e)
+        {
+            // No usable token on disk yet (file missing, or no claudeAiOauth.accessToken). Treat it
+            // like an HTTP 401 so the tray shows the "needs auth" state and the faster retry/auto-open
+            // kicks in — but with a message that says to sign in, not a raw file-not-found error.
+            return new UsageData { Error = e.Message, Unauthorized = true };
+        }
         catch (Exception e)
         {
             return new UsageData { Error = Friendly(e), Transient = IsTransient(e) };
@@ -113,12 +120,26 @@ internal sealed class ApiClient
         _ => e.Message,
     };
 
+    // Shown verbatim in the tray tooltip / Insights when there's no token to use yet.
+    private const string SignInHint =
+        "Not signed in to Claude Code. Open Claude Code and run /login to sign in.";
+
     private static string ReadToken()
     {
+        if (!File.Exists(CredsPath))
+            throw new NotAuthenticatedException(SignInHint);
+
         using var doc = JsonDocument.Parse(File.ReadAllText(CredsPath));
-        return doc.RootElement.GetProperty("claudeAiOauth").GetProperty("accessToken").GetString()
-               ?? throw new InvalidOperationException("accessToken missing in .credentials.json");
+        if (doc.RootElement.TryGetProperty("claudeAiOauth", out var oauth)
+            && oauth.TryGetProperty("accessToken", out var tok)
+            && tok.GetString() is { Length: > 0 } token)
+            return token;
+
+        throw new NotAuthenticatedException(SignInHint);
     }
+
+    /// <summary>No usable OAuth token on disk yet — surfaced as a "needs sign-in" state, not an error.</summary>
+    private sealed class NotAuthenticatedException(string message) : Exception(message);
 
     private static double H(HttpResponseMessage r, string name)
     {

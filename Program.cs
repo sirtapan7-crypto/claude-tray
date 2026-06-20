@@ -425,7 +425,7 @@ internal sealed class TrayContext : ApplicationContext
         else if (_settings.AutoOpenOnUnauthenticated && !_autoOpenedForAuth)
         {
             _autoOpenedForAuth = true;
-            OpenClaudeCode();
+            OpenClaudeCode(forReauth: true);
         }
     }
 
@@ -525,7 +525,7 @@ internal sealed class TrayContext : ApplicationContext
         if (_data == null) return "Claude Code — connecting…";
         if (_data.Error != null)
             return _data.Unauthorized
-                ? "Claude Code — not authenticated\nOpen Claude Code to sign in again"
+                ? "Claude Code — not signed in\nOpen Claude Code and run /login to sign in"
                 : $"Claude Code — API error\n{_data.Error}";
 
         long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
@@ -581,14 +581,21 @@ internal sealed class TrayContext : ApplicationContext
     // Open the Claude Code CLI in a terminal. Starting it makes Claude Code validate and refresh
     // the OAuth token, which clears an expired-token (401) state for the next poll. `claude` is on
     // PATH for anyone who uses Claude Code, so the shell resolves it regardless of install method.
-    private void OpenClaudeCode()
+    private void OpenClaudeCode(bool forReauth = false)
     {
         try
         {
+            // `claude` only auto-opens the browser login when there's NO valid session; a stale token
+            // is reused silently and won't re-auth. There's no CLI flag to force it, so when we open
+            // for re-auth we print a hint to type /login (the only reliable force-reauth path) above
+            // the prompt, then launch claude in the same window.
+            string command = forReauth
+                ? "/k echo If usage still shows \"not signed in\", type  /login  to re-authenticate. & claude"
+                : "/k claude";
             var psi = new ProcessStartInfo
             {
                 FileName = "cmd.exe",
-                Arguments = "/k claude",
+                Arguments = command,
                 UseShellExecute = true,
             };
             // Open in the configured working directory when set and still present; otherwise let
@@ -602,7 +609,7 @@ internal sealed class TrayContext : ApplicationContext
         {
             MessageBox.Show(
                 "Could not launch Claude Code automatically.\n" +
-                "Open a terminal and run \"claude\" to sign in, then choose \"Refresh now\".\n\n" + ex.Message,
+                "Open a terminal, run \"claude\", type /login to sign in, then choose \"Refresh now\".\n\n" + ex.Message,
                 "Claude Code Tray", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
     }
