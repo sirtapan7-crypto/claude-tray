@@ -27,6 +27,13 @@ internal sealed class Settings
     /// <summary>Draw the usage percentage number on the tray icon (otherwise just the fill bar).</summary>
     public bool ShowPercentage { get; set; } = true;
 
+    /// <summary>
+    /// Show a tray notification when a usage window resets earlier than its reported deadline —
+    /// e.g. the weekly counter dropping to 0% days before its scheduled reset (a known Claude Code
+    /// anomaly). Rare by nature, so it's enabled by default; turn it off to silence the alert.
+    /// </summary>
+    public bool NotifyOnUnexpectedReset { get; set; } = true;
+
     /// <summary>Which usage window the tray displays: "5h", "7d", or "extra".</summary>
     public string Metric { get; set; } = DefaultMetric;
 

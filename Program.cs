@@ -68,6 +68,15 @@ internal static class Program
             return;
         }
 
+        // Dev/preview helper: fire the "unexpected weekly reset" tray balloon with sample numbers
+        // (79% → 0%, 3 days early) and keep the message loop alive briefly so it can be seen /
+        // screenshotted, then exit. Uses the same wording as the live notifier (ResetBalloon).
+        if (args.Length >= 1 && args[0] == "--simulate-reset")
+        {
+            SimulateReset();
+            return;
+        }
+
         // Dev/preview helper: open just the Settings window, standalone, so the UI can be launched
         // and screenshotted deterministically without going through the tray menu.
         if (args.Length >= 1 && args[0] == "--settings")
@@ -86,6 +95,24 @@ internal static class Program
         Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
         ApplicationConfiguration.Initialize();
         Application.Run(new TrayContext());
+    }
+
+    // Dev helper: show the unexpected-reset toast with sample data (79% → 0%, 3 days early) so it can
+    // be previewed / screenshotted standalone. Uses the same display strings as the live notifier.
+    private static void SimulateReset()
+    {
+        var app = new System.Windows.Application
+        {
+            ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown,
+        };
+        long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var ev = new BurnTracker.UnexpectedReset(PrevUtil: 0.79, PrevReset: now + 3 * 86400, NewReset: now + 7 * 86400);
+        var (headline, fromFraction, ahead) = TrayContext.ResetToastInfo(ev, now);
+
+        var toast = new ToastWindow(headline, fromFraction, ahead);
+        toast.Closed += (_, _) => app.Shutdown();
+        toast.Show();
+        app.Run();
     }
 
     // Dev helper: dump sample icons as PNG at real tray sizes for visual inspection.
@@ -279,10 +306,20 @@ internal sealed class TrayContext : ApplicationContext
     // instead of stacking duplicates.
     private SettingsWindow? _settingsWindow;
 
-    // A WPF Application must exist for the Fluent theme and pack-URI resources to resolve. We host
-    // a single instance for the process lifetime but never call Run() on it — the WinForms message
-    // loop (Application.Run(TrayContext)) already pumps messages for both UI stacks on this thread.
+    // A WPF Application must exist before any WPF window (Settings, the reset toast) is shown on this
+    // thread, for the Fluent theme and pack-URI resources to resolve. Hosted as a single instance for
+    // the process lifetime but never Run() — the WinForms message loop (Application.Run(TrayContext))
+    // already pumps messages for both UI stacks on this thread.
     private static System.Windows.Application? _wpfApp;
+
+    private void EnsureWpfApp()
+    {
+        if (_wpfApp is null && System.Windows.Application.Current is null)
+            _wpfApp = new System.Windows.Application
+            {
+                ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown,
+            };
+    }
 
     // Open the settings window (non-modal); on Save it calls ApplySettings to persist and apply.
     private void OpenSettings()
@@ -295,11 +332,7 @@ internal sealed class TrayContext : ApplicationContext
             return;
         }
 
-        if (_wpfApp is null && System.Windows.Application.Current is null)
-            _wpfApp = new System.Windows.Application
-            {
-                ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown,
-            };
+        EnsureWpfApp();
 
         _settingsWindow = new SettingsWindow(_settings, ApplySettings);
         _settingsWindow.Closed += (_, _) => _settingsWindow = null;
@@ -312,6 +345,7 @@ internal sealed class TrayContext : ApplicationContext
     {
         _settings.RefreshSeconds = updated.RefreshSeconds;
         _settings.ShowPercentage = updated.ShowPercentage;
+        _settings.NotifyOnUnexpectedReset = updated.NotifyOnUnexpectedReset;
         _settings.ClaudeCodeDirectory = updated.ClaudeCodeDirectory;
         _settings.AutoOpenOnUnauthenticated = updated.AutoOpenOnUnauthenticated;
         _settings.AuthRetrySeconds = updated.AuthRetrySeconds;
@@ -395,7 +429,13 @@ internal sealed class TrayContext : ApplicationContext
         {
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             foreach (string key in Metrics)
-                _burn.Record(key, fresh.Metric(key), fresh.ResetOf(key), now);
+            {
+                BurnTracker.UnexpectedReset? ev = _burn.Record(key, fresh.Metric(key), fresh.ResetOf(key), now);
+                // Only the weekly window is worth alerting on: the 5h window resets too often for
+                // an early reset to mean anything, and "extra" is overage, not a scheduled window.
+                if (key == "7d" && ev is { } reset && _settings.NotifyOnUnexpectedReset)
+                    NotifyUnexpectedReset(reset, now);
+            }
         }
         _flashOn = false;
         Render();
@@ -467,6 +507,56 @@ internal sealed class TrayContext : ApplicationContext
             MessageBox.Show($"Could not download the update:\n{ex.Message}",
                 "Claude Code Tray", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
+    }
+
+    // The weekly window reset before its reported deadline (e.g. usage dropping to 0% days early —
+    // an anomaly that contradicts the documented 7-day cycle). Alert once, and append a timestamped
+    // line to a local log so the event can be reported later with concrete before/after numbers.
+    private void NotifyUnexpectedReset(BurnTracker.UnexpectedReset ev, long now)
+    {
+        LogResetEvent(ev, now);
+        var (headline, fromFraction, ahead) = ResetToastInfo(ev, now);
+        try
+        {
+            EnsureWpfApp();
+            new ToastWindow(headline, fromFraction, ahead).Show();
+        }
+        catch
+        {
+            // If the custom toast can't be shown, fall back to the plain system balloon so the
+            // event is never silently dropped.
+            _tray.BalloonTipTitle = "Weekly limit reset early 🎉";
+            _tray.BalloonTipText = $"Usage {Pct(ev.PrevUtil)} → 0%, {ahead} — your quota's back.";
+            _tray.BalloonTipIcon = ToolTipIcon.Info;
+            _tray.ShowBalloonTip(10_000);
+        }
+    }
+
+    // The toast's display strings, shared by the live notifier and the --simulate-reset dev preview
+    // so the wording can never drift between them. Framed as the good news it is: quota back early.
+    internal static (string headline, double fromFraction, string ahead) ResetToastInfo(
+        BurnTracker.UnexpectedReset ev, long now)
+    {
+        string ahead = ev.PrevReset > now
+            ? $"{FmtDays(ev.PrevReset - now)} ahead of schedule"
+            : "ahead of schedule";
+        return ("Your weekly limit reset early", ev.PrevUtil, ahead);
+    }
+
+    // Best-effort append to %LocalAppData%\ClaudeTray\reset-events.log; never let it disrupt a poll.
+    private static void LogResetEvent(BurnTracker.UnexpectedReset ev, long now)
+    {
+        try
+        {
+            string dir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClaudeTray");
+            Directory.CreateDirectory(dir);
+            static string Iso(double unix) => DateTimeOffset.FromUnixTimeSeconds((long)unix).UtcDateTime.ToString("o");
+            string line = System.FormattableString.Invariant(
+                $"{Iso(now)}\tweekly {(int)Math.Round(ev.PrevUtil * 100)}%->0%\tprevReset={Iso(ev.PrevReset)}\tnewReset={Iso(ev.NewReset)}");
+            File.AppendAllText(Path.Combine(dir, "reset-events.log"), line + Environment.NewLine);
+        }
+        catch { /* logging is best-effort */ }
     }
 
     private double CurrentPct()

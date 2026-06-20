@@ -152,6 +152,25 @@
                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                         </Border>
 
+                        <TextBlock Text="Notifications"
+                                   FontSize="16" FontWeight="SemiBold" Margin="0,22,0,12"
+                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+
+                        <!-- Unexpected-reset alert card -->
+                        <Border CornerRadius="8" Padding="16,12"
+                                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                                BorderThickness="1"
+                                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
+                            <StackPanel>
+                                <CheckBox x:Name="NotifyResetCheck"
+                                          Content="Notify on an unexpected usage reset"
+                                          Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                <TextBlock Margin="0,8,0,0" TextWrapping="Wrap" FontSize="12"
+                                           Text="Shows a tray notification if a usage window resets earlier than its reported deadline — e.g. the weekly counter dropping to 0% days before its scheduled reset. The event is also saved to reset-events.log."
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                        </Border>
+
                         <TextBlock Text="Claude Code"
                                    FontSize="16" FontWeight="SemiBold" Margin="0,22,0,12"
                                    Foreground="{DynamicResource TextFillColorPrimaryBrush}" />

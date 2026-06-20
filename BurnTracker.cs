@@ -26,11 +26,25 @@ internal sealed class BurnTracker
     private const int MaxSamples = 24;
     // Need at least this much elapsed time between first and last sample to trust a slope.
     private const double MinSpanSeconds = 120;
+    // A reset counts as "unexpected" only when the previously-reported deadline was still this
+    // far in the future — comfortably beyond the slowest poll cadence (1h), so an on-time reset
+    // (where the deadline ≈ now) never trips it, but the days-early anomaly does.
+    private const double UnexpectedResetMarginSeconds = 2 * 3600;
 
     private readonly Dictionary<string, Series> _series = new();
 
-    /// <summary>Record a fresh utilization sample, auto-clearing history when the window resets.</summary>
-    public void Record(string key, double util, double reset, double now)
+    /// <summary>A usage window that reset earlier than its previously-reported deadline — the
+    /// signal behind the "unexpected reset" tray notification. Carries before/after numbers so
+    /// the event can be reported with concrete values.</summary>
+    internal readonly record struct UnexpectedReset(double PrevUtil, double PrevReset, double NewReset);
+
+    /// <summary>
+    /// Record a fresh utilization sample, auto-clearing history when the window resets. Returns a
+    /// non-null <see cref="UnexpectedReset"/> when this sample shows the window resetting before its
+    /// previously-reported deadline (usage fell to ~0% while the old reset time was still well in
+    /// the future) — otherwise null.
+    /// </summary>
+    public UnexpectedReset? Record(string key, double util, double reset, double now)
     {
         if (!_series.TryGetValue(key, out Series? s))
             _series[key] = s = new Series();
@@ -38,7 +52,17 @@ internal sealed class BurnTracker
         // A new window started if the reset timestamp jumped, or utilization fell sharply
         // (usage only climbs within a window). Either way, the old trend no longer applies.
         bool resetMoved = reset > 0 && s.LastReset > 0 && Math.Abs(reset - s.LastReset) > 1;
-        bool dropped = s.Samples.Count > 0 && util < s.Samples[^1].u - 0.05;
+        double prevUtil = s.Samples.Count > 0 ? s.Samples[^1].u : 0;
+        bool dropped = s.Samples.Count > 0 && util < prevUtil - 0.05;
+
+        // The window reset before it was due: usage collapsed to ~0% while the deadline we last
+        // saw was still comfortably in the future. A normal reset lands AT the deadline, where
+        // s.LastReset - now ≈ 0, so it stays below the margin and is treated as routine.
+        UnexpectedReset? unexpected =
+            dropped && util < 0.05 && s.LastReset > 0 && s.LastReset - now > UnexpectedResetMarginSeconds
+                ? new UnexpectedReset(prevUtil, s.LastReset, reset)
+                : null;
+
         if (resetMoved || dropped)
             s.Samples.Clear();
 
@@ -46,6 +70,8 @@ internal sealed class BurnTracker
         s.Samples.Add((now, util));
         if (s.Samples.Count > MaxSamples)
             s.Samples.RemoveAt(0);
+
+        return unexpected;
     }
 
     /// <summary>
