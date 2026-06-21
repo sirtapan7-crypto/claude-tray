@@ -168,6 +168,12 @@ internal sealed class BurnTracker
                 exhaust = double.PositiveInfinity;
         }
 
+        // A window at (or rounding to) 100% is already exhausted — there is nothing left to project,
+        // so the verdict is always Danger (red). Without this, usage pinned flat at 100% has a ~0
+        // burn slope and the regression path would call it "on track" (green).
+        if (util >= 0.995)
+            return (Projection.Danger, 0, burnPerHour);
+
         return (verdict, exhaust, burnPerHour);
     }
 }

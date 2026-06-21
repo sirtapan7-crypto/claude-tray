@@ -668,16 +668,19 @@ internal sealed class TrayContext : ApplicationContext
         bool hasEta = eta > 0 && !double.IsInfinity(eta);
         // Each projection verdict has a full form and a compact fallback for when the tooltip is
         // tight (see the 127-char cap note below). null => no projection line at all.
-        (string full, string compact)? projection = verdict switch
-        {
-            Projection.Danger => hasEta
-                ? ($"⚠ {scope} projection: 100% in {FmtDays(eta)} (before reset)", $"⚠ 100% in {FmtDays(eta)}")
-                : ($"⚠ {scope} projection: above safe pace (before reset)", "⚠ above safe pace"),
-            Projection.Ok => double.IsInfinity(eta)
-                ? ($"✓ {scope} projection: on track", "✓ on track")
-                : ($"✓ {scope} projection: 100% in {FmtDays(eta)} (after reset)", $"✓ 100% in {FmtDays(eta)}"),
-            _ => null,
-        };
+        (string full, string compact)? projection = CurrentPct() >= 0.995
+            // Already maxed: state it plainly rather than "projecting" a limit you've reached.
+            ? ($"⚠ {scope}: at limit (100%)", "⚠ at limit (100%)")
+            : verdict switch
+            {
+                Projection.Danger => hasEta
+                    ? ($"⚠ {scope} projection: 100% in {FmtDays(eta)} (before reset)", $"⚠ 100% in {FmtDays(eta)}")
+                    : ($"⚠ {scope} projection: above safe pace (before reset)", "⚠ above safe pace"),
+                Projection.Ok => double.IsInfinity(eta)
+                    ? ($"✓ {scope} projection: on track", "✓ on track")
+                    : ($"✓ {scope} projection: 100% in {FmtDays(eta)} (after reset)", $"✓ 100% in {FmtDays(eta)}"),
+                _ => null,
+            };
 
         string updated = _lastRefresh is { } t ? $"  ⟳ {t:HH:mm:ss}" : "";
         string statusLine = $"Status: {_data.Status}{updated}";
