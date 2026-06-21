@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 // System.Drawing (WinForms) is in the global usings, so disambiguate the WPF types.
@@ -162,6 +163,29 @@ internal partial class ToastWindow : Window
             spin.BeginAnimation(RotateTransform.AngleProperty, rotate);
             piece.BeginAnimation(OpacityProperty, fade);
         }
+    }
+
+    /// <summary>
+    /// Render the card — gradient, confetti and filled bar, with its drop shadow and rounded
+    /// corners as real alpha — to a transparent PNG at 2× for crisp documentation. Call once the
+    /// entrance and bar-fill animations have settled.
+    /// </summary>
+    internal void SaveSnapshot(string path)
+    {
+        // Neutralize Root's own entrance transform/opacity so the snapshot is upright and opaque.
+        Root.Opacity = 1;
+        SlideT.Y = 0;
+        Root.UpdateLayout();
+
+        const double scale = 2.0;
+        var rtb = new RenderTargetBitmap(
+            (int)(Width * scale), (int)(Height * scale), 96 * scale, 96 * scale, PixelFormats.Pbgra32);
+        rtb.Render(Root);
+
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(rtb));
+        using var fs = System.IO.File.Create(path);
+        encoder.Save(fs);
     }
 
     private void Close_Click(object sender, RoutedEventArgs e) => Dismiss();

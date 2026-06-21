@@ -196,6 +196,25 @@
   .proj .bad .swatch{background:var(--red);box-shadow:0 0 10px rgba(229,72,77,.6)}
   .proj p{color:var(--muted);font-size:.92rem}
 
+  /* ---------- reset notifications ---------- */
+  .notify-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:26px}
+  @media(max-width:760px){.notify-grid{grid-template-columns:1fr}}
+  .notify{
+    position:relative;border-radius:16px;padding:20px 22px 22px;
+    border:1px solid var(--line);background:linear-gradient(180deg,var(--panel),var(--bg-2));
+    transition:transform .2s ease,border-color .2s,box-shadow .25s;
+  }
+  .notify:hover{transform:translateY(-4px);box-shadow:0 22px 50px -26px rgba(0,0,0,.85)}
+  .notify img{width:100%;height:auto;display:block;
+    filter:drop-shadow(0 18px 30px rgba(0,0,0,.55));margin-bottom:16px}
+  .notify .ntag{display:inline-flex;align-items:center;gap:9px;font-weight:700;font-size:.95rem;margin-bottom:6px}
+  .notify .nsw{width:12px;height:12px;border-radius:4px;flex:0 0 auto}
+  .notify p{color:var(--muted);font-size:.9rem;line-height:1.55}
+  .notify.clay{border-color:rgba(217,119,87,.45)}    .notify.clay .nsw{background:#D97757;box-shadow:0 0 10px rgba(217,119,87,.6)}
+  .notify.violet{border-color:rgba(148,96,198,.45)}  .notify.violet .nsw{background:#9460C6;box-shadow:0 0 10px rgba(148,96,198,.6)}
+  .notify.teal{border-color:rgba(35,152,122,.5)}     .notify.teal .nsw{background:#23987A;box-shadow:0 0 10px rgba(35,152,122,.6)}
+  .notify.blue{border-color:rgba(63,121,207,.5)}     .notify.blue .nsw{background:#3F79CF;box-shadow:0 0 10px rgba(63,121,207,.6)}
+
   /* ---------- privacy banner ---------- */
   .privacy{
     background:linear-gradient(135deg,rgba(217,119,87,.1),var(--panel));
@@ -247,6 +266,7 @@
     <div class="nav-links">
       <a href="#features">Features</a>
       <a href="#projection">Projection</a>
+      <a href="#notifications">Notifications</a>
       <a href="#insights">Insights</a>
       <a href="#install">Install</a>
       <a class="btn btn-primary" href="https://github.com/alegauss/claude-tray/releases/latest">⬇ Download</a>
@@ -366,6 +386,42 @@
         <p>At your current pace, usage will hit 100% <b>before</b> the reset. The fill bar turns <b style="color:var(--red)">vivid red</b> so you can ease off in time.</p>
       </div>
     </div>
+  </div>
+</section>
+
+<!-- RESET NOTIFICATIONS -->
+<section id="notifications">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="eyebrow">New ✨</div>
+      <h2>When your quota comes back, you'll know — by color</h2>
+      <p>Every reset gets a celebratory, on-brand toast: a confetti burst and the quota bar visibly refilling. Each kind has its <b>own color and headline</b>, so you can tell what happened the instant it appears — without reading a word.</p>
+    </div>
+    <div class="notify-grid reveal">
+      <div class="notify clay">
+        <img src="notify-surprise.png" alt="Surprise! toast — weekly limit reset early (clay/coral)">
+        <div class="ntag"><span class="nsw"></span> Surprise! · weekly reset <b>early</b></div>
+        <p>Your weekly limit reset ahead of its scheduled deadline — a known Claude Code quirk worth catching.</p>
+      </div>
+      <div class="notify violet">
+        <img src="notify-bonus.png" alt="Bonus! toast — weekly usage credited back (violet)">
+        <div class="ntag"><span class="nsw"></span> Bonus! · usage <b>credited back</b></div>
+        <p>A partial mid-window credit dropped your weekly usage (e.g. 91% → 50%). Found money.</p>
+      </div>
+      <div class="notify teal">
+        <img src="notify-weekly.png" alt="New week! toast — routine weekly reset (teal)">
+        <div class="ntag"><span class="nsw"></span> New week! · <b>weekly</b> reset</div>
+        <p>The calm, routine weekly reset — fresh quota for the week ahead.</p>
+      </div>
+      <div class="notify blue">
+        <img src="notify-session.png" alt="Fresh session! toast — 5h session reset (blue)">
+        <div class="ntag"><span class="nsw"></span> Fresh session! · <b>5h</b> reset</div>
+        <p>The 5-hour session window rolled over — fresh for the next 5 hours.</p>
+      </div>
+    </div>
+    <p style="text-align:center;color:var(--muted-2);font-size:.9rem;margin-top:26px">
+      All four are <b style="color:var(--text)">on by default</b> — toggle each one independently in <b style="color:var(--text)">Settings</b>.
+    </p>
   </div>
 </section>
 

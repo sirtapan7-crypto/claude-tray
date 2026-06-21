@@ -76,6 +76,15 @@ internal static class Program
             return;
         }
 
+        // Dev/preview helper: render a reset toast (card + shadow + confetti) to a transparent PNG,
+        // so the four variants can be documented cleanly on any background. Args: <variant> <outPath>.
+        if (args.Length >= 1 && args[0] == "--capture-toast")
+        {
+            CaptureToast(args.Length >= 2 ? args[1] : "unexpected",
+                args.Length >= 3 ? args[2] : "toast.png");
+            return;
+        }
+
         // Dev/preview helper: open just the Settings window, standalone, so the UI can be launched
         // and screenshotted deterministically without going through the tray menu.
         if (args.Length >= 1 && args[0] == "--settings")
@@ -119,6 +128,41 @@ internal static class Program
         var toast = new ToastWindow(emoji, title, subtitle, fromUsage, toUsage, caption, quotaLabel, theme);
         toast.Closed += (_, _) => app.Shutdown();
         toast.Show();
+        app.Run();
+    }
+
+    // Dev/preview helper: same sample data as SimulateReset, but instead of leaving the toast on
+    // screen it waits for the entrance + bar-fill animations to settle, snapshots the card to a
+    // transparent PNG (so it composites on any README/site background), and exits.
+    private static void CaptureToast(string variant, string outPath)
+    {
+        var app = new System.Windows.Application
+        {
+            ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown,
+        };
+        long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var (key, ev) = variant.ToLowerInvariant() switch
+        {
+            "scheduled" => ("7d", new BurnTracker.ResetEvent(BurnTracker.ResetKind.Scheduled, 0.79, 0.0, now, now + 7 * 86400)),
+            "credit" => ("7d", new BurnTracker.ResetEvent(BurnTracker.ResetKind.Credit, 0.91, 0.50, now + 4 * 86400, now + 4 * 86400)),
+            "session" => ("5h", new BurnTracker.ResetEvent(BurnTracker.ResetKind.Scheduled, 0.88, 0.0, now, now + 5 * 3600)),
+            _ => ("7d", new BurnTracker.ResetEvent(BurnTracker.ResetKind.Unexpected, 0.79, 0.0, now + 3 * 86400, now + 7 * 86400)),
+        };
+        var (emoji, title, subtitle, fromUsage, toUsage, caption, quotaLabel, theme) = TrayContext.ResetToastContent(key, ev, now);
+
+        var toast = new ToastWindow(emoji, title, subtitle, fromUsage, toUsage, caption, quotaLabel, theme);
+        toast.Show();
+        var settle = new System.Windows.Threading.DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(1700), // entrance (420ms) + bar fill (550+900ms)
+        };
+        settle.Tick += (_, _) =>
+        {
+            settle.Stop();
+            try { toast.SaveSnapshot(System.IO.Path.GetFullPath(outPath)); Console.WriteLine("wrote " + System.IO.Path.GetFullPath(outPath)); }
+            finally { app.Shutdown(); }
+        };
+        settle.Start();
         app.Run();
     }
 

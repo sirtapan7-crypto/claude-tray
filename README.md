@@ -74,6 +74,40 @@ How the verdict is computed depends on the window:
 The bar color and the tooltip's projected time follow whichever metric you have **Show on
 icon** set to (session 5h, week 7d, or extra). Resets are detected and clear the history.
 
+## ✨ Reset notifications — color-coded, at a glance
+
+When a usage window hands your quota back, the app celebrates it with a **bespoke, on-brand
+toast** that slides up from the bottom-right: a confetti burst and the quota bar visibly
+**refilling** to its new level. It deliberately replaces the plain Windows balloon — a reset is
+good news, so it should feel like it.
+
+Each kind of reset gets its **own color and headline**, so you know what happened the instant it
+appears — without reading a word:
+
+<div align="center">
+
+<img src="docs/notify-surprise.png" alt="Surprise! — weekly limit reset early (clay)" width="48%">
+&nbsp;
+<img src="docs/notify-bonus.png" alt="Bonus! — weekly usage credited back (violet)" width="48%">
+
+<img src="docs/notify-weekly.png" alt="New week! — routine weekly reset (teal)" width="48%">
+&nbsp;
+<img src="docs/notify-session.png" alt="Fresh session! — 5h session reset (blue)" width="48%">
+
+</div>
+
+| Notification | Color | What it means | Setting |
+|---|---|---|---|
+| 🎉 **Surprise!** | **Clay/coral** | Your weekly limit reset **early** — ahead of its scheduled deadline | Unexpected reset |
+| 🎉 **Bonus!** | **Violet** | A partial mid-window **credit** dropped your weekly usage (e.g. 91% → 50%) | Unexpected reset |
+| ✦ **New week!** | **Teal** | The routine **weekly** reset — fresh quota for the week | Scheduled reset |
+| ✦ **Fresh session!** | **Blue** | The **5-hour session** window reset — fresh for the next 5 hours | Session reset |
+
+The two weekly anomalies (early reset, mid-window credit) are known Claude Code quirks worth
+knowing about; the routine weekly and session resets are calmer "your quota's back" pings. **All
+are on by default** — toggle any of them independently in **Settings** (right-click → Settings),
+so you can keep the surprises and silence the routine ones, or vice versa.
+
 ## Usage insights (last 24h)
 
 <div align="center">

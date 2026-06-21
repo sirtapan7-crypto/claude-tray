@@ -15,6 +15,7 @@ trademarks of Anthropic; the tool only reads usage data Claude Code already expo
 - **Crisp at any DPI**: the percentage is drawn as a vector at the exact tray size (no downscaled bitmaps), sharp on 125–200% displays.
 - **Task-Manager-style fill bar**: a vertical bar rises with usage; blue when on track, vivid red when projected to exhaust before the window resets.
 - **Burn-rate projection**: short rolling history + least-squares regression projects when usage reaches 100%, warning before the reset.
+- **Color-coded reset notifications**: when a usage window hands quota back, a bespoke on-brand toast (confetti + a refilling quota bar) appears, with a distinct color/headline per kind — clay "Surprise!" (early weekly reset), violet "Bonus!" (mid-window credit), teal "New week!" (routine weekly reset), blue "Fresh session!" (5h session reset). All on by default; each toggles independently in Settings.
 - **24h usage insights**: local, cost-weighted breakdown by model, subagents, and large-context requests — read only from session transcripts, never message content.
 - **Auth recovery**: on an expired token (HTTP 401) the tooltip shows a clear "not authenticated" prompt and an "Open Claude Code" menu item re-authenticates in one click.
 - **Self-updating**: checks GitHub Releases and offers a one-click in-app update; per-user install, no admin rights.
