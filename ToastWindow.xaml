@@ -34,17 +34,11 @@
             <TranslateTransform x:Name="SlideT" Y="44" />
         </Grid.RenderTransform>
 
-        <Border CornerRadius="16" Margin="14">
+        <!-- Card background gradient is set per notification type in code-behind (see ToastTheme). -->
+        <Border x:Name="Card" CornerRadius="16" Margin="14">
             <Border.Effect>
                 <DropShadowEffect BlurRadius="26" ShadowDepth="5" Direction="270" Opacity="0.5" Color="#80000000" />
             </Border.Effect>
-            <Border.Background>
-                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                    <GradientStop Color="#E89072" Offset="0" />
-                    <GradientStop Color="#D97757" Offset="0.5" />
-                    <GradientStop Color="#B0512F" Offset="1" />
-                </LinearGradientBrush>
-            </Border.Background>
 
             <Grid ClipToBounds="True">
                 <!-- Confetti is generated in code-behind and sits above the gradient, below the text. -->
@@ -76,7 +70,7 @@
                     <!-- The good news, shown as available quota filling back up to 100%. -->
                     <StackPanel Grid.Row="1" VerticalAlignment="Center" Margin="0,12,0,0">
                         <Grid>
-                            <TextBlock Text="Weekly quota left" FontSize="13" FontWeight="SemiBold"
+                            <TextBlock x:Name="QuotaLabel" FontSize="13" FontWeight="SemiBold"
                                        Foreground="White" HorizontalAlignment="Left" />
                             <TextBlock x:Name="AvailPct" FontSize="13" FontWeight="SemiBold"
                                        Foreground="White" HorizontalAlignment="Right" />

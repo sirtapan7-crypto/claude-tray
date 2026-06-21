@@ -97,8 +97,9 @@ internal static class Program
     }
 
     // Dev helper: show a reset toast with sample data so it can be previewed / screenshotted
-    // standalone. Uses the same display strings as the live notifier. `variant` is "scheduled" (routine
-    // weekly reset), "credit" (partial mid-window drop 91% → 50%), or anything else for the early reset.
+    // standalone. Uses the same display strings as the live notifier. `variant`: "scheduled" (routine
+    // weekly reset), "credit" (partial mid-window drop 91% → 50%), "session" (routine 5h session
+    // reset), or anything else for the early weekly reset.
     private static void SimulateReset(string variant)
     {
         var app = new System.Windows.Application
@@ -106,15 +107,16 @@ internal static class Program
             ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown,
         };
         long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        var ev = variant.ToLowerInvariant() switch
+        var (key, ev) = variant.ToLowerInvariant() switch
         {
-            "scheduled" => new BurnTracker.ResetEvent(BurnTracker.ResetKind.Scheduled, 0.79, 0.0, now, now + 7 * 86400),
-            "credit" => new BurnTracker.ResetEvent(BurnTracker.ResetKind.Credit, 0.91, 0.50, now + 4 * 86400, now + 4 * 86400),
-            _ => new BurnTracker.ResetEvent(BurnTracker.ResetKind.Unexpected, 0.79, 0.0, now + 3 * 86400, now + 7 * 86400),
+            "scheduled" => ("7d", new BurnTracker.ResetEvent(BurnTracker.ResetKind.Scheduled, 0.79, 0.0, now, now + 7 * 86400)),
+            "credit" => ("7d", new BurnTracker.ResetEvent(BurnTracker.ResetKind.Credit, 0.91, 0.50, now + 4 * 86400, now + 4 * 86400)),
+            "session" => ("5h", new BurnTracker.ResetEvent(BurnTracker.ResetKind.Scheduled, 0.88, 0.0, now, now + 5 * 3600)),
+            _ => ("7d", new BurnTracker.ResetEvent(BurnTracker.ResetKind.Unexpected, 0.79, 0.0, now + 3 * 86400, now + 7 * 86400)),
         };
-        var (emoji, title, subtitle, fromUsage, toUsage, caption) = TrayContext.ResetToastContent(ev, now);
+        var (emoji, title, subtitle, fromUsage, toUsage, caption, quotaLabel, theme) = TrayContext.ResetToastContent(key, ev, now);
 
-        var toast = new ToastWindow(emoji, title, subtitle, fromUsage, toUsage, caption);
+        var toast = new ToastWindow(emoji, title, subtitle, fromUsage, toUsage, caption, quotaLabel, theme);
         toast.Closed += (_, _) => app.Shutdown();
         toast.Show();
         app.Run();
@@ -352,6 +354,7 @@ internal sealed class TrayContext : ApplicationContext
         _settings.ShowPercentage = updated.ShowPercentage;
         _settings.NotifyOnUnexpectedReset = updated.NotifyOnUnexpectedReset;
         _settings.NotifyOnScheduledReset = updated.NotifyOnScheduledReset;
+        _settings.NotifyOnSessionReset = updated.NotifyOnSessionReset;
         _settings.ClaudeCodeDirectory = updated.ClaudeCodeDirectory;
         _settings.AutoOpenOnUnauthenticated = updated.AutoOpenOnUnauthenticated;
         _settings.AuthRetrySeconds = updated.AuthRetrySeconds;
@@ -437,18 +440,21 @@ internal sealed class TrayContext : ApplicationContext
             foreach (string key in Metrics)
             {
                 BurnTracker.ResetEvent? ev = _burn.Record(key, fresh.Metric(key), fresh.ResetOf(key), now);
-                // Only the weekly window is worth alerting on: the 5h window resets too often to be
-                // interesting, and "extra" is overage, not a scheduled window. Each kind of reset has
-                // its own opt-in.
-                if (key == "7d" && ev is { } reset)
+                if (ev is not { } reset) continue;
+
+                // Each window decides by its own opt-in. Weekly: the routine on-time reset uses the
+                // quiet "scheduled" toggle, while the anomalous events (an early reset or a mid-window
+                // credit) ride the "unexpected" toggle. Session (5h): a single toggle for any reset.
+                // "extra" is overage, not a scheduled window — never notified.
+                bool wanted = key switch
                 {
-                    // The routine on-time reset uses its own (quieter) opt-in; the anomalous events —
-                    // an early reset or a mid-window credit — ride the "unexpected" opt-in.
-                    bool wanted = reset.Kind == BurnTracker.ResetKind.Scheduled
+                    "7d" => reset.Kind == BurnTracker.ResetKind.Scheduled
                         ? _settings.NotifyOnScheduledReset
-                        : _settings.NotifyOnUnexpectedReset;
-                    if (wanted) NotifyReset(reset, now);
-                }
+                        : _settings.NotifyOnUnexpectedReset,
+                    "5h" => _settings.NotifyOnSessionReset,
+                    _ => false,
+                };
+                if (wanted) NotifyReset(key, reset, now);
             }
         }
         _flashOn = false;
@@ -523,17 +529,17 @@ internal sealed class TrayContext : ApplicationContext
         }
     }
 
-    // The weekly window fell — a full reset (early or on schedule) or a partial mid-window credit.
+    // A usage window fell — a full reset (early or on schedule) or a partial mid-window credit.
     // Show the matching toast and append a timestamped line to a local log so the event can be
-    // reported later with concrete before/after numbers.
-    private void NotifyReset(BurnTracker.ResetEvent ev, long now)
+    // reported later with concrete before/after numbers. `key` is the window ("5h" or "7d").
+    private void NotifyReset(string key, BurnTracker.ResetEvent ev, long now)
     {
-        LogResetEvent(ev, now);
-        var (emoji, title, subtitle, fromUsage, toUsage, caption) = ResetToastContent(ev, now);
+        LogResetEvent(key, ev, now);
+        var (emoji, title, subtitle, fromUsage, toUsage, caption, quotaLabel, theme) = ResetToastContent(key, ev, now);
         try
         {
             EnsureWpfApp();
-            new ToastWindow(emoji, title, subtitle, fromUsage, toUsage, caption).Show();
+            new ToastWindow(emoji, title, subtitle, fromUsage, toUsage, caption, quotaLabel, theme).Show();
         }
         catch
         {
@@ -546,31 +552,54 @@ internal sealed class TrayContext : ApplicationContext
         }
     }
 
-    // The toast's display strings per kind, shared by the live notifier and the --simulate-reset dev
-    // preview so the wording can never drift. All are framed as good news (quota back); the early
-    // reset gets the loud "Surprise!", the routine one a calm "New week!", a partial credit a "Bonus!".
-    // Returns the before/after usage fractions too, so the toast bar lands on the real new level.
-    internal static (string emoji, string title, string subtitle, double fromUsage, double toUsage, string caption)
-        ResetToastContent(BurnTracker.ResetEvent ev, long now)
+    // The toast's display strings per window + kind, shared by the live notifier and the
+    // --simulate-reset dev preview so the wording can never drift. All are framed as good news (quota
+    // back); the early reset gets the loud "Surprise!", the routine one a calm "New week!"/"Fresh
+    // session!", a partial credit a "Bonus!". Returns the before/after usage fractions too, so the
+    // toast bar lands on the real new level, plus the quota-bar label for the window.
+    internal static (string emoji, string title, string subtitle, double fromUsage, double toUsage,
+        string caption, string quotaLabel, ToastWindow.ToastTheme theme)
+        ResetToastContent(string key, BurnTracker.ResetEvent ev, long now)
     {
+        bool weekly = key == "7d";
+        string quotaLabel = weekly ? "Weekly quota left" : "Session quota left";
+        string limitNoun = weekly ? "weekly limit" : "5h session";
+        string scopeWord = weekly ? "weekly" : "session";
+        string freshSuffix = weekly ? "fresh quota for the week" : "fresh for the next 5 hours";
+        string resetTitle = weekly ? "New week!" : "Fresh session!";
         int fromPct = (int)Math.Round(Math.Clamp(ev.PrevUtil, 0, 1) * 100);
         int toPct = (int)Math.Round(Math.Clamp(ev.NewUtil, 0, 1) * 100);
+
+        // Color theme: a session event is always blue; otherwise the weekly kind picks the color
+        // (early reset = clay/Surprise, credit = violet/Bonus, routine = teal/Weekly).
+        ToastWindow.ToastTheme theme = !weekly
+            ? ToastWindow.ToastTheme.Session
+            : ev.Kind switch
+            {
+                BurnTracker.ResetKind.Unexpected => ToastWindow.ToastTheme.Surprise,
+                BurnTracker.ResetKind.Credit => ToastWindow.ToastTheme.Bonus,
+                _ => ToastWindow.ToastTheme.Weekly,
+            };
+
         return ev.Kind switch
         {
-            BurnTracker.ResetKind.Unexpected => ("🎉", "Surprise!", "Your weekly limit reset early",
+            BurnTracker.ResetKind.Unexpected => ("🎉", "Surprise!", $"Your {limitNoun} reset early",
                 ev.PrevUtil, ev.NewUtil,
-                $"Was {fromPct}% used · {(ev.PrevReset > now ? $"{FmtDays(ev.PrevReset - now)} ahead of schedule" : "ahead of schedule")}"),
-            BurnTracker.ResetKind.Credit => ("🎉", "Bonus!", "Some weekly usage was credited back",
+                $"Was {fromPct}% used · {(ev.PrevReset > now ? $"{FmtDays(ev.PrevReset - now)} ahead of schedule" : "ahead of schedule")}",
+                quotaLabel, theme),
+            BurnTracker.ResetKind.Credit => ("🎉", "Bonus!", $"Some {scopeWord} usage was credited back",
                 ev.PrevUtil, ev.NewUtil,
-                $"Usage dropped {fromPct}% → {toPct}%"),
-            _ => ("✨", "New week!", "Your weekly limit just reset",
+                $"Usage dropped {fromPct}% → {toPct}%",
+                quotaLabel, theme),
+            _ => ("✨", resetTitle, $"Your {limitNoun} just reset",
                 ev.PrevUtil, ev.NewUtil,
-                $"Was {fromPct}% used · fresh quota for the week"),
+                $"Was {fromPct}% used · {freshSuffix}",
+                quotaLabel, theme),
         };
     }
 
     // Best-effort append to %LocalAppData%\ClaudeTray\reset-events.log; never let it disrupt a poll.
-    private static void LogResetEvent(BurnTracker.ResetEvent ev, long now)
+    private static void LogResetEvent(string key, BurnTracker.ResetEvent ev, long now)
     {
         try
         {
@@ -579,7 +608,7 @@ internal sealed class TrayContext : ApplicationContext
             Directory.CreateDirectory(dir);
             static string Iso(double unix) => DateTimeOffset.FromUnixTimeSeconds((long)unix).UtcDateTime.ToString("o");
             string line = System.FormattableString.Invariant(
-                $"{Iso(now)}\tweekly {ev.Kind.ToString().ToLowerInvariant()} {(int)Math.Round(ev.PrevUtil * 100)}%->{(int)Math.Round(ev.NewUtil * 100)}%\tprevReset={Iso(ev.PrevReset)}\tnewReset={Iso(ev.NewReset)}");
+                $"{Iso(now)}\t{key} {ev.Kind.ToString().ToLowerInvariant()} {(int)Math.Round(ev.PrevUtil * 100)}%->{(int)Math.Round(ev.NewUtil * 100)}%\tprevReset={Iso(ev.PrevReset)}\tnewReset={Iso(ev.NewReset)}");
             File.AppendAllText(Path.Combine(dir, "reset-events.log"), line + Environment.NewLine);
         }
         catch { /* logging is best-effort */ }

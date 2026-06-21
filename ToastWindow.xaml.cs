@@ -21,6 +21,9 @@ namespace ClaudeTray;
 /// </summary>
 internal partial class ToastWindow : Window
 {
+    /// <summary>Color theme per notification type, so each is identifiable at a glance.</summary>
+    internal enum ToastTheme { Surprise, Bonus, Weekly, Session }
+
     private bool _closing;
     private double _targetScale = 1.0; // available quota after the event; the bar animates to this
 
@@ -35,21 +38,41 @@ internal partial class ToastWindow : Window
         (Color)ColorConverter.ConvertFromString("#FFF3B0"),
     };
 
-    public ToastWindow(string emoji, string title, string subtitle, double fromUsage, double toUsage, string caption)
+    public ToastWindow(string emoji, string title, string subtitle, double fromUsage, double toUsage,
+        string caption, string quotaLabel, ToastTheme theme)
     {
         InitializeComponent();
 
         double fromAvail = 1 - Math.Clamp(fromUsage, 0, 1);
         _targetScale = 1 - Math.Clamp(toUsage, 0, 1); // quota left after the event
 
+        Card.Background = Gradient(theme);
         Emoji.Text = emoji;
         TitleText.Text = title;
         Subtitle.Text = subtitle;
+        QuotaLabel.Text = quotaLabel;
         AvailPct.Text = $"{(int)Math.Round(_targetScale * 100)}%";
         Caption.Text = caption;
         FillScale.ScaleX = fromAvail; // quota left before; animates up to _targetScale
 
         Loaded += OnLoaded;
+    }
+
+    // A distinct top-left→bottom-right gradient per type: clay (Surprise), violet (Bonus),
+    // teal (Weekly), blue (Session). White text and confetti read on all four.
+    private static LinearGradientBrush Gradient(ToastTheme theme)
+    {
+        (string a, string b, string c) = theme switch
+        {
+            ToastTheme.Bonus => ("#B98BDD", "#9460C6", "#5E3496"),   // violet
+            ToastTheme.Weekly => ("#43B894", "#23987A", "#136E58"),  // teal/green
+            ToastTheme.Session => ("#6BA3E6", "#3F79CF", "#234E96"), // blue
+            _ => ("#E89072", "#D97757", "#B0512F"),                  // clay (Surprise)
+        };
+        static Color C(string hex) => (Color)ColorConverter.ConvertFromString(hex);
+        return new LinearGradientBrush(
+            new GradientStopCollection { new(C(a), 0), new(C(b), 0.5), new(C(c), 1) },
+            new Point(0, 0), new Point(1, 1));
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)

@@ -14,14 +14,6 @@ updates:
     commit-message:
       prefix: "chore(deps)"
 
-  # Keep GitHub Actions workflows up to date (no-op until workflows are added)
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-    labels:
-      - "dependencies"
-      - "github-actions"
-    commit-message:
-      prefix: "chore(ci)"
+  # NOTE: A "github-actions" ecosystem entry was removed because this repo has no
+  # workflows yet. Dependabot's github-actions updater now hard-errors when it finds
+  # no /action.yml or .github/workflows/*.yml. Re-add the block once workflows exist.

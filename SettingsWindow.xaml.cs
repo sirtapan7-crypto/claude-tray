@@ -31,6 +31,7 @@ internal partial class SettingsWindow : Window
             ShowPercentage = current.ShowPercentage,
             NotifyOnUnexpectedReset = current.NotifyOnUnexpectedReset,
             NotifyOnScheduledReset = current.NotifyOnScheduledReset,
+            NotifyOnSessionReset = current.NotifyOnSessionReset,
             ClaudeCodeDirectory = current.ClaudeCodeDirectory,
             AutoOpenOnUnauthenticated = current.AutoOpenOnUnauthenticated,
             AuthRetrySeconds = current.AuthRetrySeconds,
@@ -56,6 +57,7 @@ internal partial class SettingsWindow : Window
         ShowPctCheck.IsChecked = _settings.ShowPercentage;
         NotifyResetCheck.IsChecked = _settings.NotifyOnUnexpectedReset;
         NotifyWeeklyCheck.IsChecked = _settings.NotifyOnScheduledReset;
+        NotifySessionCheck.IsChecked = _settings.NotifyOnSessionReset;
         // "Start with Windows" is a registry entry (HKCU\…\Run), not part of the Settings model;
         // read its live state here and apply it directly on Save.
         StartupCheck.IsChecked = StartupManager.IsEnabled();
@@ -206,6 +208,7 @@ internal partial class SettingsWindow : Window
         _settings.ShowPercentage = ShowPctCheck.IsChecked == true;
         _settings.NotifyOnUnexpectedReset = NotifyResetCheck.IsChecked == true;
         _settings.NotifyOnScheduledReset = NotifyWeeklyCheck.IsChecked == true;
+        _settings.NotifyOnSessionReset = NotifySessionCheck.IsChecked == true;
         _settings.ClaudeCodeDirectory = DirectoryBox.Text.Trim();
         _settings.AutoOpenOnUnauthenticated = AutoOpenCheck.IsChecked == true;
         _settings.AuthRetrySeconds = (int)Math.Round(RetrySlider.Value);

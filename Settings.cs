@@ -40,6 +40,12 @@ internal sealed class Settings
     /// </summary>
     public bool NotifyOnScheduledReset { get; set; } = false;
 
+    /// <summary>
+    /// Show a tray notification when the 5-hour session window resets ("fresh session"). Off by
+    /// default since it recurs several times a day; turn it on to get the heads-up each cycle.
+    /// </summary>
+    public bool NotifyOnSessionReset { get; set; } = false;
+
     /// <summary>Which usage window the tray displays: "5h", "7d", or "extra".</summary>
     public string Metric { get; set; } = DefaultMetric;
 
