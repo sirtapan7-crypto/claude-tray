@@ -172,13 +172,13 @@
                                           Content="Notify on the routine weekly reset too"
                                           Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                                 <TextBlock Margin="0,8,0,0" TextWrapping="Wrap" FontSize="12"
-                                           Text="A calmer “fresh week, quota's back” notification when your weekly limit resets on schedule. Off by default since it happens every week."
+                                           Text="A calmer “fresh week, quota's back” notification when your weekly limit resets on schedule."
                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                                 <CheckBox x:Name="NotifySessionCheck" Margin="0,14,0,0"
                                           Content="Notify on the 5-hour session reset"
                                           Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                                 <TextBlock Margin="0,8,0,0" TextWrapping="Wrap" FontSize="12"
-                                           Text="A “fresh session” notification when your 5-hour session window resets. Off by default since it can happen several times a day."
+                                           Text="A “fresh session” notification when your 5-hour session window resets (can happen several times a day)."
                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                             </StackPanel>
                         </Border>

@@ -36,15 +36,15 @@ internal sealed class Settings
 
     /// <summary>
     /// Show a (calmer) tray notification on the routine weekly reset too — the "fresh week, quota's
-    /// back" ping. Off by default since it recurs every week; turn it on if you like the heads-up.
+    /// back" ping. On by default; turn it off to silence the weekly heads-up.
     /// </summary>
-    public bool NotifyOnScheduledReset { get; set; } = false;
+    public bool NotifyOnScheduledReset { get; set; } = true;
 
     /// <summary>
-    /// Show a tray notification when the 5-hour session window resets ("fresh session"). Off by
-    /// default since it recurs several times a day; turn it on to get the heads-up each cycle.
+    /// Show a tray notification when the 5-hour session window resets ("fresh session"). On by
+    /// default; turn it off if the several-times-a-day heads-up is too frequent.
     /// </summary>
-    public bool NotifyOnSessionReset { get; set; } = false;
+    public bool NotifyOnSessionReset { get; set; } = true;
 
     /// <summary>Which usage window the tray displays: "5h", "7d", or "extra".</summary>
     public string Metric { get; set; } = DefaultMetric;
