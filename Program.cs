@@ -181,10 +181,6 @@ internal static class Program
             foreach (var (pct, st, fl, verdict) in cases)
                 using (var bmp = IconRenderer.Render(pct, st, fl, size, verdict))
                     bmp.Save(Path.Combine(dir, $"icon_{(int)(pct * 100)}_{size}.png"));
-        // The 401 "needs auth" badge (gray tile + medium orange play triangle); 128 is for preview.
-        foreach (int size in new[] { 16, 20, 32, 128 })
-            using (var bmp = IconRenderer.RenderNeedsAuth(size))
-                bmp.Save(Path.Combine(dir, $"icon_needsauth_{size}.png"));
         Console.WriteLine("rendered to " + Path.GetFullPath(dir));
     }
 
@@ -685,13 +681,13 @@ internal sealed class TrayContext : ApplicationContext
 
         Projection verdict = CurrentProjection().verdict;
 
-        // On a 401 (expired token) show a gray tile with a medium orange play triangle (re-auth to
-        // resume); while connecting (no data yet) show the app logo instead of a gray "0"; otherwise
-        // the usage icon.
+        // Before we're connected to Claude Code — either still connecting (no data yet) or signed out
+        // on a 401 (expired token) — show the Claude Code Tray logo rather than a gray "0" or a play
+        // triangle. Once a poll succeeds the usage icon takes over.
         using Bitmap bmp =
-            _data is { Unauthorized: true } ? IconRenderer.RenderNeedsAuth(size) :
-            state == IconRenderer.State.Connecting ? IconRenderer.RenderLogo(size) :
-            IconRenderer.Render(CurrentPct(), state, flash, size, verdict, _settings.ShowPercentage);
+            _data is { Unauthorized: true } || state == IconRenderer.State.Connecting
+                ? IconRenderer.RenderLogo(size)
+                : IconRenderer.Render(CurrentPct(), state, flash, size, verdict, _settings.ShowPercentage);
         SetTrayIcon(bmp);
         _tray.Text = Truncate(BuildTooltip(), 127);
     }
