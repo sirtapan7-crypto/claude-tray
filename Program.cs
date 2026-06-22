@@ -395,6 +395,8 @@ internal sealed class TrayContext : ApplicationContext
         _settings.NotifyOnUnexpectedReset = updated.NotifyOnUnexpectedReset;
         _settings.NotifyOnScheduledReset = updated.NotifyOnScheduledReset;
         _settings.NotifyOnSessionReset = updated.NotifyOnSessionReset;
+        _settings.SessionResetMinPercent = updated.SessionResetMinPercent;
+        _settings.ScheduledResetMinPercent = updated.ScheduledResetMinPercent;
         _settings.ClaudeCodeDirectory = updated.ClaudeCodeDirectory;
         _settings.AutoOpenOnUnauthenticated = updated.AutoOpenOnUnauthenticated;
         _settings.AuthRetrySeconds = updated.AuthRetrySeconds;
@@ -486,12 +488,14 @@ internal sealed class TrayContext : ApplicationContext
                 // quiet "scheduled" toggle, while the anomalous events (an early reset or a mid-window
                 // credit) ride the "unexpected" toggle. Session (5h): a single toggle for any reset.
                 // "extra" is overage, not a scheduled window — never notified.
+                // The routine resets (weekly Scheduled, 5h session) also honor a minimum-usage floor:
+                // a reset from a barely-touched window isn't worth a ping. PrevUtil is a 0–1 fraction.
                 bool wanted = key switch
                 {
                     "7d" => reset.Kind == BurnTracker.ResetKind.Scheduled
-                        ? _settings.NotifyOnScheduledReset
+                        ? _settings.NotifyOnScheduledReset && reset.PrevUtil * 100 > _settings.ScheduledResetMinPercent
                         : _settings.NotifyOnUnexpectedReset,
-                    "5h" => _settings.NotifyOnSessionReset,
+                    "5h" => _settings.NotifyOnSessionReset && reset.PrevUtil * 100 > _settings.SessionResetMinPercent,
                     _ => false,
                 };
                 if (wanted) NotifyReset(key, reset, now);

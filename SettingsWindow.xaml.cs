@@ -32,6 +32,8 @@ internal partial class SettingsWindow : Window
             NotifyOnUnexpectedReset = current.NotifyOnUnexpectedReset,
             NotifyOnScheduledReset = current.NotifyOnScheduledReset,
             NotifyOnSessionReset = current.NotifyOnSessionReset,
+            SessionResetMinPercent = current.SessionResetMinPercent,
+            ScheduledResetMinPercent = current.ScheduledResetMinPercent,
             ClaudeCodeDirectory = current.ClaudeCodeDirectory,
             AutoOpenOnUnauthenticated = current.AutoOpenOnUnauthenticated,
             AuthRetrySeconds = current.AuthRetrySeconds,
@@ -58,6 +60,17 @@ internal partial class SettingsWindow : Window
         NotifyResetCheck.IsChecked = _settings.NotifyOnUnexpectedReset;
         NotifyWeeklyCheck.IsChecked = _settings.NotifyOnScheduledReset;
         NotifySessionCheck.IsChecked = _settings.NotifyOnSessionReset;
+
+        WeeklyMinSlider.Minimum = Settings.MinResetNotifyPercent;
+        WeeklyMinSlider.Maximum = Settings.MaxResetNotifyPercent;
+        WeeklyMinSlider.Value = Math.Clamp(_settings.ScheduledResetMinPercent,
+            Settings.MinResetNotifyPercent, Settings.MaxResetNotifyPercent);
+        SessionMinSlider.Minimum = Settings.MinResetNotifyPercent;
+        SessionMinSlider.Maximum = Settings.MaxResetNotifyPercent;
+        SessionMinSlider.Value = Math.Clamp(_settings.SessionResetMinPercent,
+            Settings.MinResetNotifyPercent, Settings.MaxResetNotifyPercent);
+        UpdateWeeklyMinLabel();
+        UpdateSessionMinLabel();
         // "Start with Windows" is a registry entry (HKCU\…\Run), not part of the Settings model;
         // read its live state here and apply it directly on Save.
         StartupCheck.IsChecked = StartupManager.IsEnabled();
@@ -163,6 +176,26 @@ internal partial class SettingsWindow : Window
         RetryValue.Text = s == 1 ? "1 second" : $"{s} seconds";
     }
 
+    private void WeeklyMinSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        => UpdateWeeklyMinLabel();
+
+    private void SessionMinSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        => UpdateSessionMinLabel();
+
+    // The threshold labels read as a sentence with the leading "Only notify above" caption:
+    // "above 2%". The value labels can be null while the slider value is set in InitializeComponent.
+    private void UpdateWeeklyMinLabel()
+    {
+        if (WeeklyMinValue is null) return;
+        WeeklyMinValue.Text = $"{(int)Math.Round(WeeklyMinSlider.Value)}%";
+    }
+
+    private void UpdateSessionMinLabel()
+    {
+        if (SessionMinValue is null) return;
+        SessionMinValue.Text = $"{(int)Math.Round(SessionMinSlider.Value)}%";
+    }
+
     // Pick the working directory Claude Code opens in. WinForms' folder dialog is already available
     // (this is a WinForms+WPF hybrid) and gives the familiar Windows folder picker.
     private void Browse_Click(object sender, RoutedEventArgs e)
@@ -220,6 +253,8 @@ internal partial class SettingsWindow : Window
         _settings.NotifyOnUnexpectedReset = NotifyResetCheck.IsChecked == true;
         _settings.NotifyOnScheduledReset = NotifyWeeklyCheck.IsChecked == true;
         _settings.NotifyOnSessionReset = NotifySessionCheck.IsChecked == true;
+        _settings.ScheduledResetMinPercent = (int)Math.Round(WeeklyMinSlider.Value);
+        _settings.SessionResetMinPercent = (int)Math.Round(SessionMinSlider.Value);
         _settings.ClaudeCodeDirectory = DirectoryBox.Text.Trim();
         _settings.AutoOpenOnUnauthenticated = AutoOpenCheck.IsChecked == true;
         _settings.AuthRetrySeconds = (int)Math.Round(RetrySlider.Value);

@@ -18,6 +18,14 @@ internal sealed class Settings
     public const int MaxAuthRetrySeconds = 300;     // 5 min is as slow as a retry needs to be
     public const int DefaultAuthRetrySeconds = 10;  // re-check every 10s while signed out
 
+    // Minimum usage (before the reset) required to fire a routine reset notification, in percent.
+    // A reset from a near-empty window is uninteresting — these floors suppress the "fresh session /
+    // week" ping when you'd barely used the window. Kept low so they nudge rather than silence.
+    public const int MinResetNotifyPercent = 0;
+    public const int MaxResetNotifyPercent = 100;
+    public const int DefaultSessionResetMinPercent = 2;    // 5h session: notify only above 2%
+    public const int DefaultScheduledResetMinPercent = 5;  // routine weekly: notify only above 5%
+
     public const string DefaultMetric = "5h";
     private static readonly string[] ValidMetrics = { "5h", "7d", "extra" };
 
@@ -45,6 +53,18 @@ internal sealed class Settings
     /// default; turn it off if the several-times-a-day heads-up is too frequent.
     /// </summary>
     public bool NotifyOnSessionReset { get; set; } = true;
+
+    /// <summary>
+    /// Minimum usage (percent) the 5-hour window must have reached before its reset to be worth a
+    /// notification — a reset from a barely-touched session is skipped. Defaults to 2%.
+    /// </summary>
+    public int SessionResetMinPercent { get; set; } = DefaultSessionResetMinPercent;
+
+    /// <summary>
+    /// Minimum usage (percent) the weekly window must have reached before its routine reset to be
+    /// worth a notification. Defaults to 5%.
+    /// </summary>
+    public int ScheduledResetMinPercent { get; set; } = DefaultScheduledResetMinPercent;
 
     /// <summary>Which usage window the tray displays: "5h", "7d", or "extra".</summary>
     public string Metric { get; set; } = DefaultMetric;
@@ -100,6 +120,8 @@ internal sealed class Settings
     {
         RefreshSeconds = Math.Clamp(RefreshSeconds, MinRefreshSeconds, MaxRefreshSeconds);
         AuthRetrySeconds = Math.Clamp(AuthRetrySeconds, MinAuthRetrySeconds, MaxAuthRetrySeconds);
+        SessionResetMinPercent = Math.Clamp(SessionResetMinPercent, MinResetNotifyPercent, MaxResetNotifyPercent);
+        ScheduledResetMinPercent = Math.Clamp(ScheduledResetMinPercent, MinResetNotifyPercent, MaxResetNotifyPercent);
         if (string.IsNullOrWhiteSpace(ClaudeCodeDirectory))
             ClaudeCodeDirectory = DefaultDirectory;
         if (Array.IndexOf(ValidMetrics, Metric) < 0)

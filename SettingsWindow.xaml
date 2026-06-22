@@ -244,41 +244,107 @@
                 </ScrollViewer>
             </Grid>
 
-            <!-- ========================= NOTIFICATIONS PAGE ========================= -->
+            <!-- ========================= NOTIFICATIONS PAGE =========================
+                 Two groups: anomaly alerts (rare, always worth seeing) and the routine
+                 resets (each gated by a "only notify above X%" floor so a barely-used
+                 window doesn't ping). The threshold rows dim when their toggle is off. -->
             <Grid x:Name="NotificationsPane" Grid.Row="0" Margin="32,28,32,0" Visibility="Collapsed">
+                <Grid.Resources>
+                    <!-- Shared look for a per-event description line. -->
+                    <Style x:Key="NotifyCaption" TargetType="TextBlock">
+                        <Setter Property="Margin" Value="28,6,0,0" />
+                        <Setter Property="TextWrapping" Value="Wrap" />
+                        <Setter Property="FontSize" Value="12" />
+                        <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+                    </Style>
+                </Grid.Resources>
+
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,14,0">
                     <StackPanel>
                         <TextBlock Text="Notifications"
                                    FontSize="16" FontWeight="SemiBold"
                                    Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                        <TextBlock Text="Which usage events show a tray notification."
-                                   Margin="0,2,0,12"
+                        <TextBlock Text="Which usage events show a tray notification, and how much usage is worth a heads-up."
+                                   Margin="0,2,0,16" TextWrapping="Wrap"
                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
 
-                        <!-- Unexpected-reset alert card -->
-                        <Border CornerRadius="8" Padding="16,12"
+                        <!-- ===== Routine resets ===== -->
+                        <TextBlock Text="Routine resets"
+                                   FontSize="13" FontWeight="SemiBold" Margin="2,0,0,8"
+                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                        <Border CornerRadius="8" Padding="16,14"
+                                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                                BorderThickness="1"
+                                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
+                            <StackPanel>
+                                <!-- Weekly reset -->
+                                <CheckBox x:Name="NotifyWeeklyCheck"
+                                          Content="Routine weekly reset"
+                                          Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                <TextBlock Style="{StaticResource NotifyCaption}"
+                                           Text="A calmer “fresh week, quota's back” notification when your weekly limit resets on schedule." />
+                                <Grid Margin="28,10,0,0"
+                                      IsEnabled="{Binding IsChecked, ElementName=NotifyWeeklyCheck}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Only notify above" VerticalAlignment="Center"
+                                               FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                    <Slider Grid.Column="1" x:Name="WeeklyMinSlider"
+                                            Margin="12,0,12,0" VerticalAlignment="Center"
+                                            Minimum="0" Maximum="100"
+                                            TickFrequency="1" IsSnapToTickEnabled="True"
+                                            ValueChanged="WeeklyMinSlider_ValueChanged" />
+                                    <TextBlock Grid.Column="2" x:Name="WeeklyMinValue"
+                                               VerticalAlignment="Center" MinWidth="38" FontSize="12"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                </Grid>
+
+                                <Border Height="1" Margin="0,16" Background="{DynamicResource DividerStrokeColorDefaultBrush}" />
+
+                                <!-- Session reset -->
+                                <CheckBox x:Name="NotifySessionCheck"
+                                          Content="5-hour session reset"
+                                          Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                <TextBlock Style="{StaticResource NotifyCaption}"
+                                           Text="A “fresh session” notification when your 5-hour session window resets (can happen several times a day)." />
+                                <Grid Margin="28,10,0,0"
+                                      IsEnabled="{Binding IsChecked, ElementName=NotifySessionCheck}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Only notify above" VerticalAlignment="Center"
+                                               FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                    <Slider Grid.Column="1" x:Name="SessionMinSlider"
+                                            Margin="12,0,12,0" VerticalAlignment="Center"
+                                            Minimum="0" Maximum="100"
+                                            TickFrequency="1" IsSnapToTickEnabled="True"
+                                            ValueChanged="SessionMinSlider_ValueChanged" />
+                                    <TextBlock Grid.Column="2" x:Name="SessionMinValue"
+                                               VerticalAlignment="Center" MinWidth="38" FontSize="12"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- ===== Anomaly alerts ===== -->
+                        <TextBlock Text="Anomalies"
+                                   FontSize="13" FontWeight="SemiBold" Margin="2,20,0,8"
+                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                        <Border CornerRadius="8" Padding="16,14"
                                 Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
                                 BorderThickness="1"
                                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
                             <StackPanel>
                                 <CheckBox x:Name="NotifyResetCheck"
-                                          Content="Notify on an unexpected usage drop"
+                                          Content="Unexpected usage drop"
                                           Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                <TextBlock Margin="0,8,0,0" TextWrapping="Wrap" FontSize="12"
-                                           Text="Shows a tray notification if weekly usage drops unexpectedly — resetting to 0% before its scheduled deadline, or a partial mid-window credit (e.g. 91% → 50%). The event is also saved to reset-events.log."
-                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                <CheckBox x:Name="NotifyWeeklyCheck" Margin="0,14,0,0"
-                                          Content="Notify on the routine weekly reset too"
-                                          Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                <TextBlock Margin="0,8,0,0" TextWrapping="Wrap" FontSize="12"
-                                           Text="A calmer “fresh week, quota's back” notification when your weekly limit resets on schedule."
-                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                <CheckBox x:Name="NotifySessionCheck" Margin="0,14,0,0"
-                                          Content="Notify on the 5-hour session reset"
-                                          Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                <TextBlock Margin="0,8,0,0" TextWrapping="Wrap" FontSize="12"
-                                           Text="A “fresh session” notification when your 5-hour session window resets (can happen several times a day)."
-                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                <TextBlock Style="{StaticResource NotifyCaption}"
+                                           Text="Shows a tray notification if weekly usage drops unexpectedly — resetting to 0% before its scheduled deadline, or a partial mid-window credit (e.g. 91% → 50%). The event is also saved to reset-events.log." />
                             </StackPanel>
                         </Border>
                     </StackPanel>
