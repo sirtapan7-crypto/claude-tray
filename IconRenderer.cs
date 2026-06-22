@@ -229,7 +229,8 @@ internal static class IconRenderer
         if (b.Width <= 0 || b.Height <= 0) return;
         float scale = Math.Min((size - 2 * padX) / b.Width, (size - 2 * padY) / b.Height);
         using var m = new Matrix();
-        m.Translate(size / 2f, size / 2f);
+        // Center the glyphs, nudged 1px left so the number reads as optically centered in the tile.
+        m.Translate(size / 2f - 1f, size / 2f);
         m.Scale(scale, scale);
         m.Translate(-(b.X + b.Width / 2f), -(b.Y + b.Height / 2f));
         p.Transform(m);
