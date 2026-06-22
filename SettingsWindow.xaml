@@ -71,6 +71,20 @@
                     </Grid>
                 </Border>
 
+                <Border x:Name="NavNotifications" CornerRadius="6" Height="40" Margin="0,0,0,4"
+                        Background="Transparent" Cursor="Hand"
+                        MouseLeftButtonUp="Nav_Click" Tag="Notifications">
+                    <Grid>
+                        <Border x:Name="AccentNotifications" Width="3" CornerRadius="2"
+                                HorizontalAlignment="Left" Margin="2,8,0,8"
+                                Visibility="Collapsed"
+                                Background="{DynamicResource AccentFillColorDefaultBrush}" />
+                        <TextBlock Text="Notifications" VerticalAlignment="Center"
+                                   Margin="16,0,0,0" FontSize="14"
+                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                    </Grid>
+                </Border>
+
                 <Border x:Name="NavAbout" CornerRadius="6" Height="40"
                         Background="Transparent" Cursor="Hand"
                         MouseLeftButtonUp="Nav_Click" Tag="About">
@@ -152,37 +166,6 @@
                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                         </Border>
 
-                        <TextBlock Text="Notifications"
-                                   FontSize="16" FontWeight="SemiBold" Margin="0,22,0,12"
-                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-
-                        <!-- Unexpected-reset alert card -->
-                        <Border CornerRadius="8" Padding="16,12"
-                                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
-                                BorderThickness="1"
-                                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
-                            <StackPanel>
-                                <CheckBox x:Name="NotifyResetCheck"
-                                          Content="Notify on an unexpected usage drop"
-                                          Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                <TextBlock Margin="0,8,0,0" TextWrapping="Wrap" FontSize="12"
-                                           Text="Shows a tray notification if weekly usage drops unexpectedly — resetting to 0% before its scheduled deadline, or a partial mid-window credit (e.g. 91% → 50%). The event is also saved to reset-events.log."
-                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                <CheckBox x:Name="NotifyWeeklyCheck" Margin="0,14,0,0"
-                                          Content="Notify on the routine weekly reset too"
-                                          Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                <TextBlock Margin="0,8,0,0" TextWrapping="Wrap" FontSize="12"
-                                           Text="A calmer “fresh week, quota's back” notification when your weekly limit resets on schedule."
-                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                <CheckBox x:Name="NotifySessionCheck" Margin="0,14,0,0"
-                                          Content="Notify on the 5-hour session reset"
-                                          Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                <TextBlock Margin="0,8,0,0" TextWrapping="Wrap" FontSize="12"
-                                           Text="A “fresh session” notification when your 5-hour session window resets (can happen several times a day)."
-                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                            </StackPanel>
-                        </Border>
-
                         <TextBlock Text="Claude Code"
                                    FontSize="16" FontWeight="SemiBold" Margin="0,22,0,12"
                                    Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
@@ -256,6 +239,47 @@
                             <CheckBox x:Name="StartupCheck"
                                       Content="Start with Windows"
                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+
+            <!-- ========================= NOTIFICATIONS PAGE ========================= -->
+            <Grid x:Name="NotificationsPane" Grid.Row="0" Margin="32,28,32,0" Visibility="Collapsed">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,14,0">
+                    <StackPanel>
+                        <TextBlock Text="Notifications"
+                                   FontSize="16" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                        <TextBlock Text="Which usage events show a tray notification."
+                                   Margin="0,2,0,12"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+
+                        <!-- Unexpected-reset alert card -->
+                        <Border CornerRadius="8" Padding="16,12"
+                                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                                BorderThickness="1"
+                                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
+                            <StackPanel>
+                                <CheckBox x:Name="NotifyResetCheck"
+                                          Content="Notify on an unexpected usage drop"
+                                          Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                <TextBlock Margin="0,8,0,0" TextWrapping="Wrap" FontSize="12"
+                                           Text="Shows a tray notification if weekly usage drops unexpectedly — resetting to 0% before its scheduled deadline, or a partial mid-window credit (e.g. 91% → 50%). The event is also saved to reset-events.log."
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                <CheckBox x:Name="NotifyWeeklyCheck" Margin="0,14,0,0"
+                                          Content="Notify on the routine weekly reset too"
+                                          Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                <TextBlock Margin="0,8,0,0" TextWrapping="Wrap" FontSize="12"
+                                           Text="A calmer “fresh week, quota's back” notification when your weekly limit resets on schedule."
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                <CheckBox x:Name="NotifySessionCheck" Margin="0,14,0,0"
+                                          Content="Notify on the 5-hour session reset"
+                                          Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                <TextBlock Margin="0,8,0,0" TextWrapping="Wrap" FontSize="12"
+                                           Text="A “fresh session” notification when your 5-hour session window resets (can happen several times a day)."
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
                         </Border>
                     </StackPanel>
                 </ScrollViewer>

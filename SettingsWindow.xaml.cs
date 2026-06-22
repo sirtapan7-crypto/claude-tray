@@ -71,7 +71,12 @@ internal partial class SettingsWindow : Window
             new Uri(Environment.ProcessPath ?? System.Windows.Forms.Application.ExecutablePath)); }
         catch { /* fall back to the default window icon */ }
 
-        SelectPage(string.Equals(initialPage, "About", StringComparison.OrdinalIgnoreCase) ? "About" : "General");
+        SelectPage(initialPage switch
+        {
+            not null when string.Equals(initialPage, "About", StringComparison.OrdinalIgnoreCase) => "About",
+            not null when string.Equals(initialPage, "Notifications", StringComparison.OrdinalIgnoreCase) => "Notifications",
+            _ => "General",
+        });
     }
 
     // Switch the visible page (General / About) and move the sidebar selection highlight.
@@ -80,15 +85,21 @@ internal partial class SettingsWindow : Window
 
     private void SelectPage(string page)
     {
+        bool general = page == "General";
+        bool notifications = page == "Notifications";
         bool about = page == "About";
-        GeneralPane.Visibility = about ? Visibility.Collapsed : Visibility.Visible;
+
+        GeneralPane.Visibility = general ? Visibility.Visible : Visibility.Collapsed;
+        NotificationsPane.Visibility = notifications ? Visibility.Visible : Visibility.Collapsed;
         AboutPane.Visibility = about ? Visibility.Visible : Visibility.Collapsed;
 
         var selected = (System.Windows.Media.Brush)FindResource("SubtleFillColorSecondaryBrush");
         var clear = System.Windows.Media.Brushes.Transparent;
-        NavGeneral.Background = about ? clear : selected;
+        NavGeneral.Background = general ? selected : clear;
+        NavNotifications.Background = notifications ? selected : clear;
         NavAbout.Background = about ? selected : clear;
-        AccentGeneral.Visibility = about ? Visibility.Collapsed : Visibility.Visible;
+        AccentGeneral.Visibility = general ? Visibility.Visible : Visibility.Collapsed;
+        AccentNotifications.Visibility = notifications ? Visibility.Visible : Visibility.Collapsed;
         AccentAbout.Visibility = about ? Visibility.Visible : Visibility.Collapsed;
 
         // The About page has nothing to save: hide Save and turn Cancel into a plain Close.
